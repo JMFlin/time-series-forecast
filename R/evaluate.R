@@ -22,7 +22,7 @@ Evaluate <- function(forecast.data, predictions.tbl){
 TrueForecasts <- function(forecast.data, predictions.tbl, final.tbl){
 
   predictions.tbl <- predictions.tbl %>%
-    add_row(date = final.tbl$date, pred = final.tbl$pred)
+    add_row(date = final.tbl$date, pred = final.tbl$pred.lm)
 
   # Plot Beer Sales Forecast
   forecast.data %>%

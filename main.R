@@ -155,15 +155,24 @@ Main <- function(){
                                mutate(date = as.Date(floor_date(date + months(optimal.lag.setting, abbreviate = FALSE), unit = "month"))) %>%
                                mutate(value.lag = unit) %>%
                                select(date, value.lag), by = c("date"))
-  #H2O.model$automl.leader
-  pred <- predict(LM.model$fit.lm, newdata = feature.data.tbl %>%
+
+  pred.lm <- predict(LM.model$fit.lm, newdata = feature.data.tbl %>%
                     select_if(~ !is.Date(.)))
 
   final.tbl <- feature.data.tbl %>%
-    mutate(pred = pred) %>%
+    mutate(pred = pred.lm) %>%
     select(date, pred)
 
   TrueForecasts(forecast.data, LM.model$predictions.tbl.lm, final.tbl)
+
+  pred.h2o <- predict(H2O.model$automl.leader, newdata = feature.data.tbl %>%
+                        select_if(~ !is.Date(.)))
+
+  final.tbl <- feature.data.tbl %>%
+    mutate(pred = pred.h2o) %>%
+    select(date, pred)
+
+  TrueForecasts(forecast.data, H2O.model$automl.leader, final.tbl)
 
 }
 
