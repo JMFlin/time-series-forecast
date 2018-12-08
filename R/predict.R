@@ -9,7 +9,7 @@ ModelH2O <- function(forecast.data.lagged){
 
     flog.info(glue("Starting h2o modeling for ", as.character(max(idx) - months(6, abbreviate = FALSE) + months(i, abbreviate = FALSE))))
 
-    flog.info("Spliting into training, validation and test sets")
+    flog.info("Splitting data into training, validation and test sets")
     # Split into training, validation and test sets
     train.tbl <- forecast.data.lagged %>%
       filter(forecast.data.lagged$date < (max(forecast.data.lagged$date) - years(1))) %>%
@@ -51,7 +51,7 @@ ModelH2O <- function(forecast.data.lagged){
       max_runtime_secs = 60,
       stopping_metric = "deviance")
 
-    flog.info("Extract leader model")
+    flog.info("Extracting leader model")
     # Extract leader model
     automl.leader <- automl.models.h2o@leader
 
@@ -71,9 +71,9 @@ ModelH2O <- function(forecast.data.lagged){
   }
 
   flog.info("Collapsing tibbles")
-  predictions.tbl <- bind_rows(tibble.list)
+  predictions.tbl.h2o <- bind_rows(tibble.list)
 
-  return(predictions.tbl)
+  return(list(predictions.tbl.h2o, automl.leader))
 }
 
 ModelLM <- function(forecast.data.lagged){
@@ -85,16 +85,16 @@ ModelLM <- function(forecast.data.lagged){
 
   for (i in 1:6) {
 
-    flog.info(glue("Starting lm modeling for ", as.character(max(idx) - months(6, abbreviate = FALSE) + months(i, abbreviate = FALSE))))
+    flog.info(glue("Startting lm modeling for ", as.character(max(idx) - months(6, abbreviate = FALSE) + months(i, abbreviate = FALSE))))
 
-    flog.info("Spliting into training, validation and test sets")
+    flog.info("Splitting data into training, validation and test sets")
     # Split into training, validation and test sets
     train.tbl <- forecast.data.lagged %>%
-      filter(forecast.data.lagged$date < (max(forecast.data.lagged$date) - months(6, abbreviate = FALSE))) %>%
+      filter(date < (max(date) - months(6, abbreviate = FALSE))) %>%
       select_if(~ !is.Date(.))
 
     test.tbl <- forecast.data.lagged %>%
-      filter(forecast.data.lagged$date == (max(forecast.data.lagged$date) - months(6, abbreviate = FALSE) + months(i, abbreviate = FALSE)))
+      filter(date == (max(date) - months(6, abbreviate = FALSE) + months(i, abbreviate = FALSE)))
 
     # Retrieves the timestamp information
     forecast.idx <- test.tbl %>%
@@ -125,6 +125,11 @@ ModelLM <- function(forecast.data.lagged){
   }
 
   flog.info("Collapsing tibbles")
-  predictions.tbl <- bind_rows(tibble.list)
+  predictions.tbl.lm <- bind_rows(tibble.list)
+
+  LM.model <- list(predictions.tbl.lm = predictions.tbl.lm,
+       fit.lm = fit.lm)
+
+  return(LM.model)
 
 }

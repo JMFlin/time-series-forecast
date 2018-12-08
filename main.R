@@ -117,23 +117,53 @@ Main <- function(){
     mutate(value.lag = lag(unit, n = optimal.lag.setting)) %>%
     filter(!is.na(value.lag))
 
+  flog.info("Plotting training strategy for h2o")
+  TrainingStrategy(forecast.data.lagged)
+
   flog.info("Starting predictions for h2o")
-  predictions.tbl.h2o <- ModelH2O(forecast.data.lagged)
+  H2O.model <- ModelH2O(forecast.data.lagged)
 
   flog.info("Investigating test error")
-  error.tbl.h2o <- Evaluate(predictions.tbl.h2o)
+  error.tbl.h2o <- Evaluate(forecast.data, H2O.model$predictions.tbl.h2o)
   print(error.tbl.h2o)
 
-  ActualVsPredicted(forecast.data, predictions.tbl.h2o)
+  ActualVsPredicted(forecast.data, H2O.model$predictions.tbl.h2o)
 
   flog.info("Starting predictions for lm")
-  predictions.tbl.lm <- ModelLM(forecast.data.lagged)
+  LM.model <- ModelLM(forecast.data.lagged)
 
   flog.info("Investigating test error")
-  error.tbl.lm <- Evaluate(predictions.tbl.lm)
+  error.tbl.lm <- Evaluate(forecast.data, LM.model$predictions.tbl.lm)
   print(error.tbl.lm)
 
-  ActualVsPredicted(forecast.data, predictions.tbl.lm)
+  ActualVsPredicted(forecast.data, LM.model$predictions.tbl.lm)
+
+  # Retrieves the timestamp information
+  forecast.idx <- forecast.data %>%
+    tk_index()
+
+  # Make future index
+  new.data.tbl <- forecast.idx %>%
+    tk_make_future_timeseries(n_future = 12) %>%
+    tk_get_timeseries_signature() %>%
+    slice(n) %>%
+    mutate(date = index) %>%
+    select(-diff, -index) %>%
+    clean_names()
+
+  feature.data.tbl <- inner_join(new.data.tbl, forecast.data.cleaned %>%
+                               mutate(date = as.Date(floor_date(date + months(optimal.lag.setting, abbreviate = FALSE), unit = "month"))) %>%
+                               mutate(value.lag = unit) %>%
+                               select(date, value.lag), by = c("date"))
+  #H2O.model$automl.leader
+  pred <- predict(LM.model$fit.lm, newdata = feature.data.tbl %>%
+                    select_if(~ !is.Date(.)))
+
+  final.tbl <- feature.data.tbl %>%
+    mutate(pred = pred) %>%
+    select(date, pred)
+
+  TrueForecasts(forecast.data, LM.model$predictions.tbl.lm, final.tbl)
 
 }
 
