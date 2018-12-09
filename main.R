@@ -1,10 +1,12 @@
 # Load libraries
+setwd("C:/Users/janne/Documents/time-series-forecast")
 library(h2o)        # Awesome ML Library
 library(timetk)     # Toolkit for working with time series in R
 library(tidyquant)  # Loads tidyverse, financial pkgs, used to get data
 library(janitor)
 library(glue)
 library(futile.logger)
+library(tsfeatures)
 
 source("R/evaluate.R")
 source("R/predict.R")
@@ -58,7 +60,7 @@ InitialPlot <- function(forecast.data, data.frequency){
 
 Main <- function(){
 
-  h2o.init()        # Fire up h2o
+  h2o.init() # Fire up h2o
   #unit <- "unit"
   n <- c(1, 2, 3)
 
