@@ -64,7 +64,6 @@ InitialPlot <- function(forecast.data, data.frequency) {
 }
 
 Main <- function() {
-
   flog.info("Loading data")
   forecast.data <- LoadData("unit")
 
@@ -74,7 +73,7 @@ Main <- function() {
     tk_get_timeseries_summary() %>%
     select(scale)
 
-  max.lag <- round(nrow(forecast.data)*0.4)
+  max.lag <- round(nrow(forecast.data) * 0.4)
 
   flog.info("Plotting time series")
   InitialPlot(forecast.data, data.frequency)

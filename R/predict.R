@@ -99,7 +99,7 @@ ModelH2O <- function(forecast.data.lagged) {
   H2O.model <- list(
     predictions.tbl.h2o = predictions.tbl.h2o,
     automl.leader = automl.leader
-    )
+  )
 
   return(H2O.model)
 }
