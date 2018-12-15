@@ -10,11 +10,11 @@ ModelH2O <- function(forecast.data.lagged) {
     flog.info("Splitting data into training, validation and test sets")
     # Split into training, validation and test sets
     train.tbl <- forecast.data.lagged %>%
-      filter(forecast.data.lagged$date < (max(forecast.data.lagged$date) - years(1)))
+      filter(forecast.data.lagged$date < (max(forecast.data.lagged$date) - years(1)) + months(i - 1, abbreviate = FALSE))
 
     valid.tbl <- forecast.data.lagged %>%
       filter(forecast.data.lagged$date >= (max(forecast.data.lagged$date) - years(1)) &
-        forecast.data.lagged$date <= (max(forecast.data.lagged$date) - months(6, abbreviate = FALSE)))
+        forecast.data.lagged$date <= (max(forecast.data.lagged$date) - months(6, abbreviate = FALSE) + months(i - 1, abbreviate = FALSE)))
 
     test.tbl <- forecast.data.lagged %>%
       filter(forecast.data.lagged$date == (max(forecast.data.lagged$date) - months(6, abbreviate = FALSE) + months(i, abbreviate = FALSE)))
@@ -33,7 +33,7 @@ ModelH2O <- function(forecast.data.lagged) {
     ))
 
     flog.info(glue(
-      "validation window: {min.valid.date} - {max.valid.date} "
+      "Validation window: {min.valid.date} - {max.valid.date} "
     ))
 
     flog.info(glue(
@@ -96,7 +96,12 @@ ModelH2O <- function(forecast.data.lagged) {
   flog.info("Collapsing tibbles")
   predictions.tbl.h2o <- bind_rows(tibble.list)
 
-  return(list(predictions.tbl.h2o, automl.leader))
+  H2O.model <- list(
+    predictions.tbl.h2o = predictions.tbl.h2o,
+    automl.leader = automl.leader
+    )
+
+  return(H2O.model)
 }
 
 ModelLM <- function(forecast.data.lagged) {
@@ -111,7 +116,7 @@ ModelLM <- function(forecast.data.lagged) {
     flog.info("Splitting data into training, validation and test sets")
     # Split into training, validation and test sets
     train.tbl <- forecast.data.lagged %>%
-      filter(date <= (max(date) - months(6, abbreviate = FALSE)))
+      filter(date <= (max(date) - months(6, abbreviate = FALSE) + months(i - 1, abbreviate = FALSE)))
 
     test.tbl <- forecast.data.lagged %>%
       filter(date == (max(date) - months(6, abbreviate = FALSE) + months(i, abbreviate = FALSE)))

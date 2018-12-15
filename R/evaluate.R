@@ -21,7 +21,7 @@ Evaluate <- function(forecast.data, predictions.tbl) {
 
 TrueForecasts <- function(forecast.data, predictions.tbl, final.tbl) {
   predictions.tbl <- predictions.tbl %>%
-    add_row(date = final.tbl$date, pred = final.tbl$pred.lm)
+    add_row(date = final.tbl$date, pred = final.tbl$pred)
 
   # Plot Beer Sales Forecast
   forecast.data %>%
@@ -50,12 +50,12 @@ ActualVsPredicted <- function(forecast.data, predictions.tbl) {
     # Training data
     geom_line(color = palette_light()[[1]]) +
     geom_point(color = palette_light()[[1]]) +
-    # Predictions
-    geom_line(aes(y = pred), color = palette_light()[[2]], data = predictions.tbl) +
-    geom_point(aes(y = pred), color = palette_light()[[2]], data = predictions.tbl) +
     # Actuals
     geom_line(color = palette_light()[[1]], data = actuals.tbl) +
     geom_point(color = palette_light()[[1]], data = actuals.tbl) +
+    # Predictions
+    geom_line(aes(y = pred), color = palette_light()[[2]], data = predictions.tbl) +
+    geom_point(aes(y = pred), color = palette_light()[[2]], data = predictions.tbl) +
     # Aesthetics
     theme_tq() +
     labs(
