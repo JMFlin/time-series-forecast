@@ -12,22 +12,16 @@ library(styler)
 usethis::use_tidy_style()
 reprex::reprex(style = TRUE)
 
-source("R/evaluate.R")
-source("R/predict.R")
+file.sources <- list.files("utils",
+                          pattern = "*.R$", full.names = TRUE,
+                          ignore.case = TRUE)
+
+invisible(sapply(file.sources, source, .GlobalEnv))
 
 h2o.init() # Fire up h2o
 h2o.no_progress() # Turn off output of progress bars
 
 n <- c(1, 2, 3)
-
-LoadData <- function(unit) {
-  forecast.data <- tq_get("S4248SM144NCEN", get = "economic.data", from = "2010-01-01", to = "2017-12-31")
-
-  forecast.data <- forecast.data %>%
-    rename(!!unit := price)
-
-  return(forecast.data)
-}
 
 TidyAcf <- function(forecast.data, value, lags = 0:20) {
   acf.values <- forecast.data %>%
@@ -42,25 +36,6 @@ TidyAcf <- function(forecast.data, value, lags = 0:20) {
     filter(lag %in% lags)
 
   return(ret)
-}
-
-InitialPlot <- function(forecast.data, data.frequency) {
-  if (data.frequency == "month") {
-    breaks <- "1 year"
-  } else if (data.frequency == "week") {
-    breaks <- "4 month"
-  } else if (data.frequency == "day") {
-    breaks <- "1 month"
-  }
-
-  forecast.data %>%
-    ggplot(aes(date, unit)) +
-    geom_line(col = palette_light()[1]) +
-    geom_point(col = palette_light()[1]) +
-    geom_ma(ma_fun = SMA, n = 12, size = 1) +
-    theme_tq() +
-    # scale_x_date(date_breaks = breaks, date_labels = "%Y") +
-    labs(title = "Time series to forecast")
 }
 
 Main <- function() {
@@ -97,17 +72,7 @@ Main <- function() {
     pull(lag)
 
   flog.info("Plotting ACF")
-  forecast.data.cleaned %>%
-    TidyAcf(unit, lags = 1:max.lag) %>%
-    ggplot(aes(lag, acf)) +
-    geom_vline(xintercept = optimal.lag.setting, size = 3, color = palette_light()[[2]]) +
-    geom_segment(aes(xend = lag, yend = 0), color = palette_light()[[1]]) +
-    geom_point(color = palette_light()[[1]], size = 2) +
-    geom_label(aes(label = acf %>% round(2)),
-      vjust = -1, color = palette_light()[[1]]
-    ) +
-    theme_tq() +
-    labs(title = "ACF")
+  AcfPlot(forecast.data.cleaned, optimal.lag.setting, max.lag)
 
   flog.info("Inserting optimal lag into feature data")
   forecast.data.lagged <- forecast.data.cleaned %>%
@@ -148,6 +113,7 @@ Main <- function() {
     slice(n) %>%
     mutate(date = index) %>%
     select(-diff, -index) %>%
+    mutate_if(is.ordered, ~ as.character(.) %>% as.factor()) %>%
     clean_names()
 
   flog.info("Creating feature table")
@@ -167,16 +133,20 @@ Main <- function() {
   flog.info("Plotting true forecasts for lm")
   TrueForecasts(forecast.data, LM.model$predictions.tbl.lm, final.tbl)
 
+  h2o.feature.data.tbl <- feature.data.tbl %>%
+    select_if(~ !is.Date(.))
+
   flog.info("Predcting with h2o model")
-  pred.h2o <- predict(H2O.model$automl.leader, newdata = feature.data.tbl %>%
-    select_if(~ !is.Date(.)))
+  pred.h2o <- predict(H2O.model$automl.leader, newdata = as.h2o(h2o.feature.data.tbl)) %>%
+    as.vector()
 
   final.tbl <- feature.data.tbl %>%
     mutate(pred = pred.h2o) %>%
     select(date, pred)
 
   flog.info("Plotting true forecasts for h2o")
-  TrueForecasts(forecast.data, H2O.model$automl.leader, final.tbl)
+  TrueForecasts(forecast.data, H2O.model$predictions.tbl.h2o, final.tbl)
 }
 
 Main()
+
