@@ -15,6 +15,11 @@ reprex::reprex(style = TRUE)
 source("R/evaluate.R")
 source("R/predict.R")
 
+h2o.init() # Fire up h2o
+h2o.no_progress() # Turn off output of progress bars
+
+n <- c(1, 2, 3)
+
 LoadData <- function(unit) {
   forecast.data <- tq_get("S4248SM144NCEN", get = "economic.data", from = "2010-01-01", to = "2017-12-31")
 
@@ -59,9 +64,6 @@ InitialPlot <- function(forecast.data, data.frequency) {
 }
 
 Main <- function() {
-  h2o.init() # Fire up h2o
-  # unit <- "unit"
-  n <- c(1, 2, 3)
 
   flog.info("Loading data")
   forecast.data <- LoadData("unit")
@@ -170,3 +172,5 @@ Main <- function() {
 
   TrueForecasts(forecast.data, H2O.model$automl.leader, final.tbl)
 }
+
+Main()

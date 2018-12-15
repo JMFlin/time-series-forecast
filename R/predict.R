@@ -10,27 +10,48 @@ ModelH2O <- function(forecast.data.lagged) {
     flog.info("Splitting data into training, validation and test sets")
     # Split into training, validation and test sets
     train.tbl <- forecast.data.lagged %>%
-      filter(forecast.data.lagged$date < (max(forecast.data.lagged$date) - years(1))) %>%
-      select_if(~ !is.Date(.))
+      filter(forecast.data.lagged$date < (max(forecast.data.lagged$date) - years(1)))
 
     valid.tbl <- forecast.data.lagged %>%
-      filter(forecast.data.lagged$date > (max(forecast.data.lagged$date) - years(1)) &
-        forecast.data.lagged$date < (max(forecast.data.lagged$date) - months(6, abbreviate = FALSE))) %>%
-      select_if(~ !is.Date(.))
+      filter(forecast.data.lagged$date >= (max(forecast.data.lagged$date) - years(1)) &
+        forecast.data.lagged$date <= (max(forecast.data.lagged$date) - months(6, abbreviate = FALSE)))
 
     test.tbl <- forecast.data.lagged %>%
       filter(forecast.data.lagged$date == (max(forecast.data.lagged$date) - months(6, abbreviate = FALSE) + months(i, abbreviate = FALSE)))
+
+    min.train.date <- min(as.Date(train.tbl$date))
+    max.train.date <- max(as.Date(train.tbl$date))
+
+    min.valid.date <- min(as.Date(valid.tbl$date))
+    max.valid.date <- max(as.Date(valid.tbl$date))
+
+    min.test.date <- min(as.Date(test.tbl$date))
+    max.test.date <- max(as.Date(test.tbl$date))
+
+    flog.info(glue(
+      "Training window: {min.train.date} - {max.train.date} "
+    ))
+
+    flog.info(glue(
+      "validation window: {min.valid.date} - {max.valid.date} "
+    ))
+
+    flog.info(glue(
+      "Training window: {min.test.date} - {max.test.date} "
+    ))
 
     # Retrieves the timestamp information
     forecast.idx <- test.tbl %>%
       tk_index()
 
-    test.tbl <- test.tbl %>%
+    train.tbl <- train.tbl %>%
       select_if(~ !is.Date(.))
 
-    flog.info(glue("Maximum training date:", max(train.tbl$date),
-                   "Maximum validation date:", max(valid.tbl$date),
-                   "Maximum testing date:", max(test.tbl$date)))
+    valid.tbl <- valid.tbl %>%
+      select_if(~ !is.Date(.))
+
+    test.tbl <- test.tbl %>%
+      select_if(~ !is.Date(.))
 
     ##
     # remove near zero var cols
@@ -90,15 +111,31 @@ ModelLM <- function(forecast.data.lagged) {
     flog.info("Splitting data into training, validation and test sets")
     # Split into training, validation and test sets
     train.tbl <- forecast.data.lagged %>%
-      filter(date < (max(date) - months(6, abbreviate = FALSE))) %>%
-      select_if(~ !is.Date(.))
+      filter(date <= (max(date) - months(6, abbreviate = FALSE)))
 
     test.tbl <- forecast.data.lagged %>%
       filter(date == (max(date) - months(6, abbreviate = FALSE) + months(i, abbreviate = FALSE)))
 
+    min.train.date <- min(as.Date(train.tbl$date))
+    max.train.date <- max(as.Date(train.tbl$date))
+
+    min.test.date <- min(as.Date(test.tbl$date))
+    max.test.date <- max(as.Date(test.tbl$date))
+
+    flog.info(glue(
+      "Training window: {min.train.date} - {max.train.date} "
+    ))
+
+    flog.info(glue(
+      "Training window: {min.test.date} - {max.test.date} "
+    ))
+
     # Retrieves the timestamp information
     forecast.idx <- test.tbl %>%
       tk_index()
+
+    train.tbl <- train.tbl %>%
+      select_if(~ !is.Date(.))
 
     test.tbl <- test.tbl %>%
       select_if(~ !is.Date(.))
