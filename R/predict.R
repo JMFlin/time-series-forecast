@@ -1,12 +1,10 @@
-ModelH2O <- function(forecast.data.lagged){
-
+ModelH2O <- function(forecast.data.lagged) {
   tibble.list <- list()
 
   idx <- forecast.data.lagged %>%
     tk_index()
 
   for (i in 1:6) {
-
     flog.info(glue("Starting h2o modeling for ", as.character(max(idx) - months(6, abbreviate = FALSE) + months(i, abbreviate = FALSE))))
 
     flog.info("Splitting data into training, validation and test sets")
@@ -17,7 +15,7 @@ ModelH2O <- function(forecast.data.lagged){
 
     valid.tbl <- forecast.data.lagged %>%
       filter(forecast.data.lagged$date > (max(forecast.data.lagged$date) - years(1)) &
-               forecast.data.lagged$date < (max(forecast.data.lagged$date) - months(6, abbreviate = FALSE))) %>%
+        forecast.data.lagged$date < (max(forecast.data.lagged$date) - months(6, abbreviate = FALSE))) %>%
       select_if(~ !is.Date(.))
 
     test.tbl <- forecast.data.lagged %>%
@@ -30,14 +28,18 @@ ModelH2O <- function(forecast.data.lagged){
     test.tbl <- test.tbl %>%
       select_if(~ !is.Date(.))
 
+    flog.info(glue("Maximum training date:", max(train.tbl$date),
+                   "Maximum validation date:", max(valid.tbl$date),
+                   "Maximum testing date:", max(test.tbl$date)))
+
     ##
-    #remove near zero var cols
+    # remove near zero var cols
     ##
     flog.info("Converting to h2oframe objects")
     # Convert to H2OFrame objects
     train.h2o <- as.h2o(train.tbl)
     valid.h2o <- as.h2o(valid.tbl)
-    test.h2o  <- as.h2o(test.tbl)
+    test.h2o <- as.h2o(test.tbl)
 
     x <- setdiff(names(train.h2o), "unit")
 
@@ -49,7 +51,8 @@ ModelH2O <- function(forecast.data.lagged){
       validation_frame = valid.h2o,
       leaderboard_frame = test.h2o,
       max_runtime_secs = 60,
-      stopping_metric = "deviance")
+      stopping_metric = "deviance"
+    )
 
     flog.info("Extracting leader model")
     # Extract leader model
@@ -60,14 +63,13 @@ ModelH2O <- function(forecast.data.lagged){
 
     # Predictions with timestamps
     predictions.tbl <- tibble(
-      date  = forecast.idx,
+      date = forecast.idx,
       pred = as.vector(pred.h2o)
     )
 
     flog.info("Appending predictions")
     # Append predictions
     tibble.list[[i]] <- predictions.tbl
-
   }
 
   flog.info("Collapsing tibbles")
@@ -76,15 +78,13 @@ ModelH2O <- function(forecast.data.lagged){
   return(list(predictions.tbl.h2o, automl.leader))
 }
 
-ModelLM <- function(forecast.data.lagged){
-
+ModelLM <- function(forecast.data.lagged) {
   tibble.list <- list()
 
   idx <- forecast.data.lagged %>%
     tk_index()
 
   for (i in 1:6) {
-
     flog.info(glue("Startting lm modeling for ", as.character(max(idx) - months(6, abbreviate = FALSE) + months(i, abbreviate = FALSE))))
 
     flog.info("Splitting data into training, validation and test sets")
@@ -104,7 +104,7 @@ ModelLM <- function(forecast.data.lagged){
       select_if(~ !is.Date(.))
 
     ##
-    #remove near zero var cols
+    # remove near zero var cols
     ##
 
     fit.lm <- lm(unit ~ ., data = train.tbl)
@@ -114,22 +114,22 @@ ModelLM <- function(forecast.data.lagged){
 
     # Predictions with timestamps
     predictions.tbl <- tibble(
-      date  = forecast.idx,
+      date = forecast.idx,
       pred = as.vector(pred)
     )
 
     flog.info("Appending predictions")
     # Append predictions
     tibble.list[[i]] <- predictions.tbl
-
   }
 
   flog.info("Collapsing tibbles")
   predictions.tbl.lm <- bind_rows(tibble.list)
 
-  LM.model <- list(predictions.tbl.lm = predictions.tbl.lm,
-       fit.lm = fit.lm)
+  LM.model <- list(
+    predictions.tbl.lm = predictions.tbl.lm,
+    fit.lm = fit.lm
+  )
 
   return(LM.model)
-
 }
