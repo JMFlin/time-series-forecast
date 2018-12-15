@@ -133,12 +133,14 @@ Main <- function() {
   error.tbl.lm <- Evaluate(forecast.data, LM.model$predictions.tbl.lm)
   print(error.tbl.lm)
 
+  flog.info("Plotting actual vs predicted")
   ActualVsPredicted(forecast.data, LM.model$predictions.tbl.lm)
 
   # Retrieves the timestamp information
   forecast.idx <- forecast.data %>%
     tk_index()
 
+  flog.info("Creating future time indexes")
   # Make future index
   new.data.tbl <- forecast.idx %>%
     tk_make_future_timeseries(n_future = 12) %>%
@@ -148,11 +150,13 @@ Main <- function() {
     select(-diff, -index) %>%
     clean_names()
 
+  flog.info("Creating feature table")
   feature.data.tbl <- inner_join(new.data.tbl, forecast.data.cleaned %>%
     mutate(date = as.Date(floor_date(date + months(optimal.lag.setting, abbreviate = FALSE), unit = "month"))) %>%
     mutate(value.lag = unit) %>%
     select(date, value.lag), by = c("date"))
 
+  flog.info("Predcting with linear model")
   pred.lm <- predict(LM.model$fit.lm, newdata = feature.data.tbl %>%
     select_if(~ !is.Date(.)))
 
@@ -160,8 +164,10 @@ Main <- function() {
     mutate(pred = pred.lm) %>%
     select(date, pred)
 
+  flog.info("Plotting true forecasts for lm")
   TrueForecasts(forecast.data, LM.model$predictions.tbl.lm, final.tbl)
 
+  flog.info("Predcting with h2o model")
   pred.h2o <- predict(H2O.model$automl.leader, newdata = feature.data.tbl %>%
     select_if(~ !is.Date(.)))
 
@@ -169,6 +175,7 @@ Main <- function() {
     mutate(pred = pred.h2o) %>%
     select(date, pred)
 
+  flog.info("Plotting true forecasts for h2o")
   TrueForecasts(forecast.data, H2O.model$automl.leader, final.tbl)
 }
 
