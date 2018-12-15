@@ -8,6 +8,9 @@ library(glue)
 library(futile.logger)
 library(tsfeatures)
 
+usethis::use_tidy_style()
+reprex::reprex(style = TRUE)
+
 source("R/evaluate.R")
 source("R/predict.R")
 
