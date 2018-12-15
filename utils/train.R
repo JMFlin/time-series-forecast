@@ -2,7 +2,6 @@ ModelH2O <- function(forecast.data.lagged) {
   tibble.list <- list()
 
   for (i in 1:6) {
-
     flog.info("Splitting data into training, validation and test sets")
     train.tbl <- forecast.data.lagged %>%
       filter(forecast.data.lagged$date < (max(forecast.data.lagged$date) - years(1)) + months(i - 1, abbreviate = FALSE))
@@ -89,7 +88,6 @@ ModelH2O <- function(forecast.data.lagged) {
 
     flog.info(glue("End of round {i}"))
     flog.info("=================================================")
-
   }
 
   flog.info("Collapsing tibbles")
@@ -107,7 +105,6 @@ ModelLM <- function(forecast.data.lagged) {
   tibble.list <- list()
 
   for (i in 1:6) {
-
     flog.info("Splitting data into training, validation and test sets")
     train.tbl <- forecast.data.lagged %>%
       filter(date <= (max(date) - months(6, abbreviate = FALSE) + months(i - 1, abbreviate = FALSE)))

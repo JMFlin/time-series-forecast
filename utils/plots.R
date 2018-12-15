@@ -6,7 +6,7 @@ AcfPlot <- function(forecast.data.cleaned, optimal.lag.setting, max.lag) {
     geom_segment(aes(xend = lag, yend = 0), color = palette_light()[[1]]) +
     geom_point(color = palette_light()[[1]], size = 2) +
     geom_label(aes(label = acf %>% round(2)),
-               vjust = -1, color = palette_light()[[1]]
+      vjust = -1, color = palette_light()[[1]]
     ) +
     theme_tq() +
     labs(title = "ACF")

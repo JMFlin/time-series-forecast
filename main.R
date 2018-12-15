@@ -13,8 +13,9 @@ usethis::use_tidy_style()
 reprex::reprex(style = TRUE)
 
 file.sources <- list.files("utils",
-                          pattern = "*.R$", full.names = TRUE,
-                          ignore.case = TRUE)
+  pattern = "*.R$", full.names = TRUE,
+  ignore.case = TRUE
+)
 
 invisible(sapply(file.sources, source, .GlobalEnv))
 
@@ -149,4 +150,3 @@ Main <- function() {
 }
 
 Main()
-
