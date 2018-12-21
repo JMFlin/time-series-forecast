@@ -1,5 +1,4 @@
 AcfPlot <- function(forecast.data.cleaned) {
-
   acf <- forecast.data.cleaned %>%
     TidyAcf(unit, lags = 1:max.lag)
 

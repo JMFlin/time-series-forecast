@@ -65,9 +65,9 @@ CreateFutureData <- function(forecast.data.cleaned) {
 
   flog.info("Creating feature table")
   feature.data.tbl <- inner_join(new.data.tbl, forecast.data.cleaned %>%
-                                   mutate(date = as.Date(floor_date(date + months(optimal.lag.setting, abbreviate = FALSE), unit = "month"))) %>%
-                                   mutate(value.lag = unit) %>%
-                                   select(date, value.lag), by = c("date"))
+    mutate(date = as.Date(floor_date(date + months(optimal.lag.setting, abbreviate = FALSE), unit = "month"))) %>%
+    mutate(value.lag = unit) %>%
+    select(date, value.lag), by = c("date"))
 
   return(feature.data.tbl)
 }
