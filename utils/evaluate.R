@@ -98,7 +98,7 @@ TrainingStrategy <- function(forecast.data.lagged) {
     theme_tq() +
     scale_x_date(date_breaks = "1 year", date_labels = "%Y") +
     labs(
-      #title = "Beer Sales: 2007 through 2017",
-      #subtitle = "Train, Validation, and Test Sets Shown"
+      # title = "Beer Sales: 2007 through 2017",
+      # subtitle = "Train, Validation, and Test Sets Shown"
     )
 }

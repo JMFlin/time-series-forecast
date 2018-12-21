@@ -1,18 +1,22 @@
 # Load libraries
 setwd("C:/Users/janne/Documents/time-series-forecast")
-library(h2o) # Awesome ML Library
-library(timetk) # Toolkit for working with time series in R
-library(tidyquant) # Loads tidyverse, financial pkgs, used to get data
-library(janitor)
-library(glue)
-library(futile.logger)
-library(styler)
-library(sweep) # Broom-style tidiers for the forecast package
-library(forecast) # Forecasting models and predictions package
+
+if (!require("pacman")) install.packages("pacman")
+pacman::p_load(
+  "h2o", # Awesome ML Library
+  "timetk", # Toolkit for working with time series in R
+  "futile.logger", # Adds logging
+  "tidyquant", # Loads tidyverse, financial pkgs, used to get data
+  "janitor", # COlumn name handling
+  "glue", # A better paste function
+  "styler", # Style r code
+  "sweep", # Broom-style tidiers for the forecast package
+  "forecast" # Forecasting models and predictions package
+)
 # library(tsfeatures)
 
 usethis::use_tidy_style()
-#reprex::reprex(style = TRUE)
+# reprex::reprex(style = TRUE)
 
 file.sources <- list.files("utils",
   pattern = "*.R$", full.names = TRUE,
@@ -30,7 +34,6 @@ unit.of.measurement <- "unit"
 
 
 Main <- function() {
-
   flog.info("Loading data")
   forecast.data <- LoadData(unit.of.measurement)
 
@@ -64,7 +67,6 @@ Main <- function() {
 }
 
 CreateTimeTkFeatures <- function(forecast.data.cleaned, max.lag) {
-
   flog.info("Augmenting data")
   forecast.data.augmented <- forecast.data.cleaned %>%
     tk_augment_timeseries_signature() %>%
@@ -89,7 +91,6 @@ CreateTimeTkFeatures <- function(forecast.data.cleaned, max.lag) {
     filter(!is.na(value.lag))
 
   return(forecast.data.lagged)
-
 }
 
 CreateFutureData <- function(forecast.data.cleaned, max.lag) {
@@ -116,16 +117,14 @@ CreateFutureData <- function(forecast.data.cleaned, max.lag) {
 
   flog.info("Creating feature table")
   feature.data.tbl <- inner_join(new.data.tbl, forecast.data.cleaned %>%
-                                   mutate(date = as.Date(floor_date(date + months(optimal.lag.setting, abbreviate = FALSE), unit = "month"))) %>%
-                                   mutate(value.lag = unit) %>%
-                                   select(date, value.lag), by = c("date"))
+    mutate(date = as.Date(floor_date(date + months(optimal.lag.setting, abbreviate = FALSE), unit = "month"))) %>%
+    mutate(value.lag = unit) %>%
+    select(date, value.lag), by = c("date"))
 
   return(feature.data.tbl)
-
 }
 
 MultivariateSeriesH2O <- function(forecast.data.cleaned, max.lag) {
-
   flog.info("Starting to create timetk features")
   forecast.data.lagged <- CreateTimeTkFeatures(forecast.data.cleaned, max.lag)
 
@@ -162,8 +161,7 @@ MultivariateSeriesH2O <- function(forecast.data.cleaned, max.lag) {
 
 
 
-MultivariateSeriesLM <- function(forecast.data.cleaned, max.lag){
-
+MultivariateSeriesLM <- function(forecast.data.cleaned, max.lag) {
   flog.info("Starting to create timetk features")
   forecast.data.lagged <- CreateTimeTkFeatures(forecast.data.cleaned, max.lag)
 
@@ -182,7 +180,7 @@ MultivariateSeriesLM <- function(forecast.data.cleaned, max.lag){
 
   flog.info(glue("Predicting {max(n)} steps ahead with lm"))
   pred.lm <- predict(LM.model$fit.lm, newdata = feature.data.tbl %>%
-                       select_if(~ !is.Date(.)))
+    select_if(~ !is.Date(.)))
 
   final.tbl <- feature.data.tbl %>%
     mutate(pred = pred.lm) %>%
@@ -196,7 +194,6 @@ MultivariateSeriesLM <- function(forecast.data.cleaned, max.lag){
 
 
 UnivariateSeries <- function(forecast.data.cleaned, max.lag) {
-
   flog.info("Finding frequency")
   data.frequency <- forecast.data.cleaned %>%
     tk_index() %>%
@@ -252,4 +249,3 @@ UnivariateSeries <- function(forecast.data.cleaned, max.lag) {
 }
 
 Main()
-
