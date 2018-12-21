@@ -172,7 +172,6 @@ ModelLM <- function(forecast.data.lagged) {
 
 
 ModelUnivariate <- function(forecast.data, optimal.lag.setting, data.frequency) {
-
   tibble.list <- list()
   i <- 1
   for (i in 1:6) {
@@ -186,12 +185,14 @@ ModelUnivariate <- function(forecast.data, optimal.lag.setting, data.frequency) 
 
     flog.info("Converting to TS object")
     train.ts <- tk_ts(train.tbl$unit,
-                         start = as.yearmon(glue(year(min(train.tbl$date)), '-0', month(min(train.tbl$date)))),
-                         frequency = data.frequency)
+      start = as.yearmon(glue(year(min(train.tbl$date)), "-0", month(min(train.tbl$date)))),
+      frequency = data.frequency
+    )
 
     test.ts <- tk_ts(test.tbl$unit,
-                      start = as.yearmon(glue(year(min(test.tbl$date)), '-0', month(min(test.tbl$date)))),
-                      frequency = data.frequency)
+      start = as.yearmon(glue(year(min(test.tbl$date)), "-0", month(min(test.tbl$date)))),
+      frequency = data.frequency
+    )
 
     min.train.date <- min(as.Date(train.tbl$date))
     max.train.date <- max(as.Date(train.tbl$date))
@@ -209,7 +210,7 @@ ModelUnivariate <- function(forecast.data, optimal.lag.setting, data.frequency) 
 
     # Retrieves the timestamp information
     forecast.idx <- test.tbl %>%
-        tk_index()
+      tk_index()
 
     flog.info("Starting training")
     models.list <- list(
@@ -277,7 +278,6 @@ ModelUnivariate <- function(forecast.data, optimal.lag.setting, data.frequency) 
 
     flog.info(glue("End of round {i}"))
     flog.info("=================================================")
-
   }
 
   flog.info("Collapsing tibbles")
@@ -290,6 +290,4 @@ ModelUnivariate <- function(forecast.data, optimal.lag.setting, data.frequency) 
   )
 
   return(TS.model)
-
 }
-

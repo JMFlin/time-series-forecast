@@ -7,9 +7,9 @@ library(janitor)
 library(glue)
 library(futile.logger)
 library(styler)
-library(sweep)      # Broom-style tidiers for the forecast package
-library(forecast)   # Forecasting models and predictions package
-#library(tsfeatures)
+library(sweep) # Broom-style tidiers for the forecast package
+library(forecast) # Forecasting models and predictions package
+# library(tsfeatures)
 
 usethis::use_tidy_style()
 reprex::reprex(style = TRUE)
@@ -143,7 +143,6 @@ MainMultivariateSeries()
 
 
 MainUnivariateSeries <- function() {
-
   flog.info("Loading data")
   forecast.data <- LoadData(unit.of.measurement)
 
@@ -166,10 +165,13 @@ MainUnivariateSeries <- function() {
     tk_index() %>%
     tk_get_timeseries_summary() %>%
     select(scale) %>%
-    mutate(scale = ifelse(scale == 'day', 365,
-      ifelse(scale == 'week', 7,
-                          ifelse(scale == 'month', 12,
-                          ifelse(scale == 'year', 1, NA))))) %>%
+    mutate(scale = ifelse(scale == "day", 365,
+      ifelse(scale == "week", 7,
+        ifelse(scale == "month", 12,
+          ifelse(scale == "year", 1, NA)
+        )
+      )
+    )) %>%
     as_vector()
 
   flog.info("Starting univariate modeling")
@@ -186,21 +188,21 @@ MainUnivariateSeries <- function() {
     tk_make_future_timeseries(n_future = 1)
 
   pred.uni <- TS.model$fit.uni %>%
-    mutate(fcast = map(fit, forecast, h = length(new.data.tbl)+1)) %>%
+    mutate(fcast = map(fit, forecast, h = length(new.data.tbl) + 1)) %>%
     mutate(sweep = map(fcast, sw_sweep, fitted = FALSE, timetk_idx = TRUE, rename_index = "date")) %>%
     unnest(sweep) %>%
     filter(row_number() == n()) %>%
     select(value) %>%
     as_vector()
 
-  final.tbl <- data.frame(date = new.data.tbl,
-                         pred = pred.uni) %>%
+  final.tbl <- data.frame(
+    date = new.data.tbl,
+    pred = pred.uni
+  ) %>%
     as.tibble()
 
   flog.info("Plotting true forecasts for lm")
   TrueForecasts(forecast.data, TS.model$predictions.tbl.uni, final.tbl)
-
 }
 
 MainUnivariateSeries()
-
