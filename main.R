@@ -1,6 +1,6 @@
-# Load libraries
 setwd("C:/Users/janne/Documents/time-series-forecast")
 
+# Load libraries
 if (!require("pacman")) install.packages("pacman")
 pacman::p_load(
   "h2o", # Awesome ML Library
@@ -28,7 +28,7 @@ invisible(sapply(file.sources, source, .GlobalEnv))
 h2o.init() # Fire up h2o
 h2o.no_progress() # Turn off output of progress bars
 
-n <- c(1, 2, 3)
+n <- c(3)
 
 unit.of.measurement <- "unit"
 
@@ -64,64 +64,6 @@ Main <- function() {
 
   flog.info("Starting univariate modeling with arima, ets and tbats")
   UnivariateSeries(forecast.data.cleaned, max.lag)
-}
-
-CreateTimeTkFeatures <- function(forecast.data.cleaned, max.lag) {
-  flog.info("Augmenting data")
-  forecast.data.augmented <- forecast.data.cleaned %>%
-    tk_augment_timeseries_signature() %>%
-    select(-diff)
-
-  flog.info("Cleaning augmented data")
-  forecast.data.cleaned <- forecast.data.augmented %>%
-    clean_names() %>%
-    remove_empty(c("cols")) %>%
-    select_if(~ !any(is.na(.))) %>%
-    mutate_if(is.ordered, ~ as.character(.) %>% as.factor())
-
-  flog.info("Finding optimal lag")
-  optimal.lag.setting <- forecast.data.cleaned %>%
-    TidyAcf(unit, lags = 1:max.lag) %>%
-    filter(acf == max(acf)) %>%
-    pull(lag)
-
-  flog.info("Inserting optimal lag into feature data")
-  forecast.data.lagged <- forecast.data.cleaned %>%
-    mutate(value.lag = lag(unit, n = optimal.lag.setting)) %>%
-    filter(!is.na(value.lag))
-
-  return(forecast.data.lagged)
-}
-
-CreateFutureData <- function(forecast.data.cleaned, max.lag) {
-
-  # Retrieves the timestamp information
-  forecast.idx <- forecast.data.cleaned %>%
-    tk_index()
-
-  optimal.lag.setting <- forecast.data.cleaned %>%
-    TidyAcf(unit, lags = 1:max.lag) %>%
-    filter(acf == max(acf)) %>%
-    pull(lag)
-
-  flog.info("Creating future time indexes")
-  # Make future index
-  new.data.tbl <- forecast.idx %>%
-    tk_make_future_timeseries(n_future = 12) %>%
-    tk_get_timeseries_signature() %>%
-    slice(n) %>%
-    mutate(date = index) %>%
-    select(-diff, -index) %>%
-    mutate_if(is.ordered, ~ as.character(.) %>% as.factor()) %>%
-    clean_names()
-
-  flog.info("Creating feature table")
-  feature.data.tbl <- inner_join(new.data.tbl, forecast.data.cleaned %>%
-    mutate(date = as.Date(floor_date(date + months(optimal.lag.setting, abbreviate = FALSE), unit = "month"))) %>%
-    mutate(value.lag = unit) %>%
-    select(date, value.lag), by = c("date"))
-
-  return(feature.data.tbl)
 }
 
 MultivariateSeriesH2O <- function(forecast.data.cleaned, max.lag) {
@@ -160,7 +102,6 @@ MultivariateSeriesH2O <- function(forecast.data.cleaned, max.lag) {
 }
 
 
-
 MultivariateSeriesLM <- function(forecast.data.cleaned, max.lag) {
   flog.info("Starting to create timetk features")
   forecast.data.lagged <- CreateTimeTkFeatures(forecast.data.cleaned, max.lag)
@@ -189,8 +130,6 @@ MultivariateSeriesLM <- function(forecast.data.cleaned, max.lag) {
   flog.info("Plotting true forecasts for lm")
   TrueForecasts(forecast.data, LM.model$predictions.tbl.lm, final.tbl)
 }
-
-
 
 
 UnivariateSeries <- function(forecast.data.cleaned, max.lag) {
