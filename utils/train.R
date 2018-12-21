@@ -2,7 +2,7 @@ ModelH2O <- function(forecast.data.lagged) {
   tibble.list <- list()
 
   for (i in 1:6) {
-    flog.info("Splitting data into training, validation and test sets")
+    flog.info("Splitting data into train, validation and test sets")
     train.tbl <- forecast.data.lagged %>%
       filter(forecast.data.lagged$date < (max(forecast.data.lagged$date) - years(1)) + months(i - 1, abbreviate = FALSE))
 
@@ -105,7 +105,7 @@ ModelLM <- function(forecast.data.lagged) {
   tibble.list <- list()
 
   for (i in 1:6) {
-    flog.info("Splitting data into training, validation and test sets")
+    flog.info("Splitting data into train and test sets")
     train.tbl <- forecast.data.lagged %>%
       filter(date <= (max(date) - months(6, abbreviate = FALSE) + months(i - 1, abbreviate = FALSE)))
 
@@ -169,3 +169,127 @@ ModelLM <- function(forecast.data.lagged) {
 
   return(LM.model)
 }
+
+
+ModelUnivariate <- function(forecast.data, optimal.lag.setting, data.frequency) {
+
+  tibble.list <- list()
+  i <- 1
+  for (i in 1:6) {
+    flog.info("Splitting data into train and test sets")
+
+    train.tbl <- forecast.data %>%
+      filter(date <= (max(date) - months(6, abbreviate = FALSE) + months(i - 1, abbreviate = FALSE)))
+
+    test.tbl <- forecast.data %>%
+      filter(date == (max(date) - months(6, abbreviate = FALSE) + months(i, abbreviate = FALSE)))
+
+    flog.info("Converting to TS object")
+    train.ts <- tk_ts(train.tbl$unit,
+                         start = as.yearmon(glue(year(min(train.tbl$date)), '-0', month(min(train.tbl$date)))),
+                         frequency = data.frequency)
+
+    test.ts <- tk_ts(test.tbl$unit,
+                      start = as.yearmon(glue(year(min(test.tbl$date)), '-0', month(min(test.tbl$date)))),
+                      frequency = data.frequency)
+
+    min.train.date <- min(as.Date(train.tbl$date))
+    max.train.date <- max(as.Date(train.tbl$date))
+
+    min.test.date <- min(as.Date(test.tbl$date))
+    max.test.date <- max(as.Date(test.tbl$date))
+
+    flog.info(glue(
+      "Training window: {min.train.date} - {max.train.date} "
+    ))
+
+    flog.info(glue(
+      "Testing window: {min.test.date} - {max.test.date} "
+    ))
+
+    # Retrieves the timestamp information
+    forecast.idx <- test.tbl %>%
+        tk_index()
+
+    flog.info("Starting training")
+    models.list <- list(
+      auto.arima = list(
+        y = train.ts,
+        max.p = optimal.lag.setting
+      ),
+      ets = list(
+        y = train.ts
+      ),
+      tbats = list(
+        y = train.ts
+      )
+    )
+
+    models.tbl <- enframe(models.list, name = "model_names", value = "params")
+
+    models.tbl.fit <- models.tbl %>%
+      mutate(fit = invoke_map(model_names, params))
+
+    models.tbl.fit %>%
+      mutate(tidy = map(fit, sw_tidy)) %>%
+      unnest(tidy) %>%
+      spread(key = model_names, value = estimate)
+
+    flog.info("Select best model")
+    best.model <- models.tbl.fit %>%
+      mutate(glance = map(fit, sw_glance)) %>%
+      unnest(glance, .drop = TRUE) %>%
+      arrange(desc(AIC)) %>%
+      filter(row_number() == n())
+
+    # models.tbl.fit %>%
+    #   mutate(augment = map(fit, sw_augment, rename_index = "date")) %>%
+    #   unnest(augment) %>%
+    #   ggplot(aes(x = date, y = .resid, group = model_names)) +
+    #   geom_line(color = palette_light()[[2]]) +
+    #   geom_point(color = palette_light()[[1]]) +
+    #   geom_smooth(method = "loess") +
+    #   facet_wrap(~ model_names, nrow = 3) +
+    #   labs(title = "Residuals Plot") +
+    #   theme_tq()
+
+    flog.info("Predicting with best model")
+    models.tbl.fcast <- models.tbl.fit %>%
+      filter(model_names == (best.model %>% select(model_names) %>% as_vector())) %>%
+      mutate(fcast = map(fit, forecast, h = 1))
+
+    models.tbl.fcast.tidy <- models.tbl.fcast %>%
+      mutate(sweep = map(fcast, sw_sweep, fitted = FALSE, timetk_idx = TRUE, rename_index = "date"))
+
+    # Predictions with timestamps
+    predictions.tbl <- tibble(
+      date = forecast.idx,
+      pred = models.tbl.fcast.tidy %>%
+        unnest(sweep) %>%
+        filter(row_number() == n()) %>%
+        select(value) %>%
+        as_vector()
+    )
+
+    flog.info("Appending predictions")
+    # Append predictions
+    tibble.list[[i]] <- predictions.tbl
+
+    flog.info(glue("End of round {i}"))
+    flog.info("=================================================")
+
+  }
+
+  flog.info("Collapsing tibbles")
+  predictions.tbl.uni <- bind_rows(tibble.list)
+
+  TS.model <- list(
+    predictions.tbl.uni = predictions.tbl.uni,
+    fit.uni = models.tbl.fit %>%
+      filter(model_names == (best.model %>% select(model_names) %>% as_vector()))
+  )
+
+  return(TS.model)
+
+}
+

@@ -6,8 +6,10 @@ library(tidyquant) # Loads tidyverse, financial pkgs, used to get data
 library(janitor)
 library(glue)
 library(futile.logger)
-library(tsfeatures)
 library(styler)
+library(sweep)      # Broom-style tidiers for the forecast package
+library(forecast)   # Forecasting models and predictions package
+#library(tsfeatures)
 
 usethis::use_tidy_style()
 reprex::reprex(style = TRUE)
@@ -24,24 +26,12 @@ h2o.no_progress() # Turn off output of progress bars
 
 n <- c(1, 2, 3)
 
-TidyAcf <- function(forecast.data, value, lags = 0:20) {
-  acf.values <- forecast.data %>%
-    pull(unit) %>%
-    acf(lag.max = tail(lags, 1), plot = FALSE) %>%
-    .$acf %>%
-    .[, , 1]
+unit.of.measurement <- "unit"
 
-  ret <- tibble(acf = acf.values) %>%
-    rowid_to_column(var = "lag") %>%
-    mutate(lag = lag - 1) %>%
-    filter(lag %in% lags)
 
-  return(ret)
-}
-
-Main <- function() {
+MainMultivariateSeries <- function() {
   flog.info("Loading data")
-  forecast.data <- LoadData("unit")
+  forecast.data <- LoadData(unit.of.measurement)
 
   # SEE SCALE
   data.frequency <- forecast.data %>%
@@ -149,4 +139,68 @@ Main <- function() {
   TrueForecasts(forecast.data, H2O.model$predictions.tbl.h2o, final.tbl)
 }
 
-Main()
+MainMultivariateSeries()
+
+
+MainUnivariateSeries <- function() {
+
+  flog.info("Loading data")
+  forecast.data <- LoadData(unit.of.measurement)
+
+  max.lag <- round(nrow(forecast.data) * 0.4)
+
+  flog.info("Cleaning data")
+  forecast.data.cleaned <- forecast.data.augmented %>%
+    clean_names() %>%
+    remove_empty(c("cols")) %>%
+    select_if(~ !any(is.na(.)))
+
+  flog.info("Finding optimal lag")
+  optimal.lag.setting <- forecast.data.cleaned %>%
+    TidyAcf(unit, lags = 1:max.lag) %>%
+    filter(acf == max(acf)) %>%
+    pull(lag)
+
+  flog.info("Finding frequency")
+  data.frequency <- forecast.data %>%
+    tk_index() %>%
+    tk_get_timeseries_summary() %>%
+    select(scale) %>%
+    mutate(scale = ifelse(scale == 'day', 365,
+      ifelse(scale == 'week', 7,
+                          ifelse(scale == 'month', 12,
+                          ifelse(scale == 'year', 1, NA))))) %>%
+    as_vector()
+
+  flog.info("Starting univariate modeling")
+  TS.model <- ModelUnivariate(forecast.data, optimal.lag.setting, data.frequency)
+
+  flog.info("Investigating test error")
+  error.tbl.lm <- Evaluate(forecast.data, TS.model$predictions.tbl.uni)
+  print(error.tbl.lm)
+
+  flog.info("Plotting actual vs predicted")
+  ActualVsPredicted(forecast.data, TS.model$predictions.tbl.uni)
+
+  new.data.tbl <- forecast.idx %>%
+    tk_make_future_timeseries(n_future = 1)
+
+  pred.uni <- TS.model$fit.uni %>%
+    mutate(fcast = map(fit, forecast, h = length(new.data.tbl)+1)) %>%
+    mutate(sweep = map(fcast, sw_sweep, fitted = FALSE, timetk_idx = TRUE, rename_index = "date")) %>%
+    unnest(sweep) %>%
+    filter(row_number() == n()) %>%
+    select(value) %>%
+    as_vector()
+
+  final.tbl <- data.frame(date = new.data.tbl,
+                         pred = pred.uni) %>%
+    as.tibble()
+
+  flog.info("Plotting true forecasts for lm")
+  TrueForecasts(forecast.data, TS.model$predictions.tbl.uni, final.tbl)
+
+}
+
+MainUnivariateSeries()
+
