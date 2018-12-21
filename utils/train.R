@@ -31,7 +31,7 @@ ModelH2O <- function(forecast.data.lagged) {
     ))
 
     flog.info(glue(
-      "Training window: {min.test.date} - {max.test.date} "
+      "Testing window: {min.test.date} - {max.test.date} "
     ))
 
     # Retrieves the timestamp information
@@ -123,7 +123,7 @@ ModelLM <- function(forecast.data.lagged) {
     ))
 
     flog.info(glue(
-      "Training window: {min.test.date} - {max.test.date} "
+      "Testing window: {min.test.date} - {max.test.date} "
     ))
 
     # Retrieves the timestamp information
@@ -171,9 +171,15 @@ ModelLM <- function(forecast.data.lagged) {
 }
 
 
-ModelUnivariate <- function(forecast.data, optimal.lag.setting, data.frequency) {
+ModelUnivariate <- function(forecast.data, data.frequency) {
   tibble.list <- list()
   i <- 1
+
+  optimal.lag.setting <- forecast.data %>%
+    TidyAcf(unit, lags = 1:max.lag) %>%
+    filter(acf == max(acf)) %>%
+    pull(lag)
+
   for (i in 1:6) {
     flog.info("Splitting data into train and test sets")
 
@@ -183,7 +189,7 @@ ModelUnivariate <- function(forecast.data, optimal.lag.setting, data.frequency) 
     test.tbl <- forecast.data %>%
       filter(date == (max(date) - months(6, abbreviate = FALSE) + months(i, abbreviate = FALSE)))
 
-    flog.info("Converting to TS object")
+    flog.info("Converting to ts objects")
     train.ts <- tk_ts(train.tbl$unit,
       start = as.yearmon(glue(year(min(train.tbl$date)), "-0", month(min(train.tbl$date)))),
       frequency = data.frequency

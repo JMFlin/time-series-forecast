@@ -1,13 +1,24 @@
-AcfPlot <- function(forecast.data.cleaned, optimal.lag.setting, max.lag) {
-  forecast.data.cleaned %>%
+AcfPlot <- function(forecast.data.cleaned, max.lag) {
+
+  optimal.lag.setting <- forecast.data.cleaned %>%
     TidyAcf(unit, lags = 1:max.lag) %>%
-    ggplot(aes(lag, acf)) +
+    filter(acf == max(acf)) %>%
+    pull(lag)
+
+  acf <- forecast.data.cleaned %>%
+    TidyAcf(unit, lags = 1:max.lag)
+
+  max.ylim <- max(acf$acf)
+  min.ylim <- min(acf$acf)
+
+  ggplot(acf, aes(lag, acf)) +
     geom_vline(xintercept = optimal.lag.setting, size = 3, color = palette_light()[[2]]) +
     geom_segment(aes(xend = lag, yend = 0), color = palette_light()[[1]]) +
     geom_point(color = palette_light()[[1]], size = 2) +
     geom_label(aes(label = acf %>% round(2)),
       vjust = -1, color = palette_light()[[1]]
     ) +
+    ylim(min(min.ylim) - 0.05, max(max.ylim) + 0.05) +
     theme_tq() +
     labs(title = "ACF")
 }

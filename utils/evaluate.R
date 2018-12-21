@@ -35,8 +35,7 @@ TrueForecasts <- function(forecast.data, predictions.tbl, final.tbl) {
     # Aesthetics
     theme_tq() +
     labs(
-      title = "Forecast: Time Series Machine Learning",
-      subtitle = "Using basic multivariate linear regression can yield accurate results"
+      title = "Forecast: Time Series Machine Learning"
     )
 }
 
@@ -59,8 +58,7 @@ ActualVsPredicted <- function(forecast.data, predictions.tbl) {
     # Aesthetics
     theme_tq() +
     labs(
-      title = "Forecast: Time Series Machine Learning",
-      subtitle = "Using basic multivariate linear regression can yield accurate results"
+      title = "Forecast: Time Series Machine Learning"
     )
 }
 
@@ -76,7 +74,6 @@ TrainingStrategy <- function(forecast.data.lagged) {
     summarize(earliest_date = as.numeric(min(date))) %>%
     select(earliest_date)
 
-  # Plot Beer Sales with train, validation, and test sets shown
   forecast.data.lagged %>%
     ggplot(aes(date, unit)) +
     # Validation Region
@@ -101,7 +98,7 @@ TrainingStrategy <- function(forecast.data.lagged) {
     theme_tq() +
     scale_x_date(date_breaks = "1 year", date_labels = "%Y") +
     labs(
-      title = "Beer Sales: 2007 through 2017",
-      subtitle = "Train, Validation, and Test Sets Shown"
+      #title = "Beer Sales: 2007 through 2017",
+      #subtitle = "Train, Validation, and Test Sets Shown"
     )
 }

@@ -12,7 +12,7 @@ library(forecast) # Forecasting models and predictions package
 # library(tsfeatures)
 
 usethis::use_tidy_style()
-reprex::reprex(style = TRUE)
+#reprex::reprex(style = TRUE)
 
 file.sources <- list.files("utils",
   pattern = "*.R$", full.names = TRUE,
@@ -29,11 +29,11 @@ n <- c(1, 2, 3)
 unit.of.measurement <- "unit"
 
 
-MainMultivariateSeries <- function() {
+Main <- function() {
+
   flog.info("Loading data")
   forecast.data <- LoadData(unit.of.measurement)
 
-  # SEE SCALE
   data.frequency <- forecast.data %>%
     tk_index() %>%
     tk_get_timeseries_summary() %>%
@@ -44,12 +44,33 @@ MainMultivariateSeries <- function() {
   flog.info("Plotting time series")
   InitialPlot(forecast.data, data.frequency)
 
+  flog.info("Cleaning data")
+  forecast.data.cleaned <- forecast.data %>%
+    clean_names() %>%
+    remove_empty(c("cols")) %>%
+    select_if(~ !any(is.na(.)))
+
+  flog.info("Plotting ACF")
+  AcfPlot(forecast.data.cleaned, max.lag)
+
+  flog.info("Starting multivariate modeling with h2o")
+  MultivariateSeriesH2O(forecast.data.cleaned, max.lag)
+
+  flog.info("Starting multivariate modeling with lm")
+  MultivariateSeriesLM(forecast.data.cleaned, max.lag)
+
+  flog.info("Starting univariate modeling with arima, ets and tbats")
+  UnivariateSeries(forecast.data.cleaned, max.lag)
+}
+
+CreateTimeTkFeatures <- function(forecast.data.cleaned, max.lag) {
+
   flog.info("Augmenting data")
-  forecast.data.augmented <- forecast.data %>%
+  forecast.data.augmented <- forecast.data.cleaned %>%
     tk_augment_timeseries_signature() %>%
     select(-diff)
 
-  flog.info("Cleaning data")
+  flog.info("Cleaning augmented data")
   forecast.data.cleaned <- forecast.data.augmented %>%
     clean_names() %>%
     remove_empty(c("cols")) %>%
@@ -62,39 +83,25 @@ MainMultivariateSeries <- function() {
     filter(acf == max(acf)) %>%
     pull(lag)
 
-  flog.info("Plotting ACF")
-  AcfPlot(forecast.data.cleaned, optimal.lag.setting, max.lag)
-
   flog.info("Inserting optimal lag into feature data")
   forecast.data.lagged <- forecast.data.cleaned %>%
     mutate(value.lag = lag(unit, n = optimal.lag.setting)) %>%
     filter(!is.na(value.lag))
 
-  flog.info("Plotting training strategy for h2o")
-  TrainingStrategy(forecast.data.lagged)
+  return(forecast.data.lagged)
 
-  flog.info("Starting predictions for h2o")
-  H2O.model <- ModelH2O(forecast.data.lagged)
+}
 
-  flog.info("Investigating test error")
-  error.tbl.h2o <- Evaluate(forecast.data, H2O.model$predictions.tbl.h2o)
-  print(error.tbl.h2o)
-
-  ActualVsPredicted(forecast.data, H2O.model$predictions.tbl.h2o)
-
-  flog.info("Starting predictions for lm")
-  LM.model <- ModelLM(forecast.data.lagged)
-
-  flog.info("Investigating test error")
-  error.tbl.lm <- Evaluate(forecast.data, LM.model$predictions.tbl.lm)
-  print(error.tbl.lm)
-
-  flog.info("Plotting actual vs predicted")
-  ActualVsPredicted(forecast.data, LM.model$predictions.tbl.lm)
+CreateFutureData <- function(forecast.data.cleaned, max.lag) {
 
   # Retrieves the timestamp information
-  forecast.idx <- forecast.data %>%
+  forecast.idx <- forecast.data.cleaned %>%
     tk_index()
+
+  optimal.lag.setting <- forecast.data.cleaned %>%
+    TidyAcf(unit, lags = 1:max.lag) %>%
+    filter(acf == max(acf)) %>%
+    pull(lag)
 
   flog.info("Creating future time indexes")
   # Make future index
@@ -109,25 +116,39 @@ MainMultivariateSeries <- function() {
 
   flog.info("Creating feature table")
   feature.data.tbl <- inner_join(new.data.tbl, forecast.data.cleaned %>%
-    mutate(date = as.Date(floor_date(date + months(optimal.lag.setting, abbreviate = FALSE), unit = "month"))) %>%
-    mutate(value.lag = unit) %>%
-    select(date, value.lag), by = c("date"))
+                                   mutate(date = as.Date(floor_date(date + months(optimal.lag.setting, abbreviate = FALSE), unit = "month"))) %>%
+                                   mutate(value.lag = unit) %>%
+                                   select(date, value.lag), by = c("date"))
 
-  flog.info("Predcting with linear model")
-  pred.lm <- predict(LM.model$fit.lm, newdata = feature.data.tbl %>%
-    select_if(~ !is.Date(.)))
+  return(feature.data.tbl)
 
-  final.tbl <- feature.data.tbl %>%
-    mutate(pred = pred.lm) %>%
-    select(date, pred)
+}
 
-  flog.info("Plotting true forecasts for lm")
-  TrueForecasts(forecast.data, LM.model$predictions.tbl.lm, final.tbl)
+MultivariateSeriesH2O <- function(forecast.data.cleaned, max.lag) {
+
+  flog.info("Starting to create timetk features")
+  forecast.data.lagged <- CreateTimeTkFeatures(forecast.data.cleaned, max.lag)
+
+  flog.info("Plotting training strategy for h2o")
+  TrainingStrategy(forecast.data.lagged)
+
+  flog.info("Starting predictions for h2o")
+  H2O.model <- ModelH2O(forecast.data.lagged)
+
+  flog.info("Investigating test error")
+  error.tbl.h2o <- Evaluate(forecast.data.cleaned, H2O.model$predictions.tbl.h2o)
+  print(error.tbl.h2o)
+
+  flog.info("Plotting acutal vs predicted")
+  ActualVsPredicted(forecast.data.cleaned, H2O.model$predictions.tbl.h2o)
+
+  flog.info("Ceating future data for prediction")
+  feature.data.tbl <- CreateFutureData(forecast.data.cleaned, max.lag)
 
   h2o.feature.data.tbl <- feature.data.tbl %>%
     select_if(~ !is.Date(.))
 
-  flog.info("Predcting with h2o model")
+  flog.info(glue("Predicting {max(n)} steps ahead with h2o"))
   pred.h2o <- predict(H2O.model$automl.leader, newdata = as.h2o(h2o.feature.data.tbl)) %>%
     as.vector()
 
@@ -139,29 +160,45 @@ MainMultivariateSeries <- function() {
   TrueForecasts(forecast.data, H2O.model$predictions.tbl.h2o, final.tbl)
 }
 
-MainMultivariateSeries()
 
 
-MainUnivariateSeries <- function() {
-  flog.info("Loading data")
-  forecast.data <- LoadData(unit.of.measurement)
+MultivariateSeriesLM <- function(forecast.data.cleaned, max.lag){
 
-  max.lag <- round(nrow(forecast.data) * 0.4)
+  flog.info("Starting to create timetk features")
+  forecast.data.lagged <- CreateTimeTkFeatures(forecast.data.cleaned, max.lag)
 
-  flog.info("Cleaning data")
-  forecast.data.cleaned <- forecast.data.augmented %>%
-    clean_names() %>%
-    remove_empty(c("cols")) %>%
-    select_if(~ !any(is.na(.)))
+  flog.info("Starting predictions for lm")
+  LM.model <- ModelLM(forecast.data.lagged)
 
-  flog.info("Finding optimal lag")
-  optimal.lag.setting <- forecast.data.cleaned %>%
-    TidyAcf(unit, lags = 1:max.lag) %>%
-    filter(acf == max(acf)) %>%
-    pull(lag)
+  flog.info("Investigating test error")
+  error.tbl.lm <- Evaluate(forecast.data.cleaned, LM.model$predictions.tbl.lm)
+  print(error.tbl.lm)
+
+  flog.info("Plotting actual vs predicted")
+  ActualVsPredicted(forecast.data.cleaned, LM.model$predictions.tbl.lm)
+
+  flog.info("Ceating future data for prediction")
+  feature.data.tbl <- CreateFutureData(forecast.data.cleaned, max.lag)
+
+  flog.info(glue("Predicting {max(n)} steps ahead with lm"))
+  pred.lm <- predict(LM.model$fit.lm, newdata = feature.data.tbl %>%
+                       select_if(~ !is.Date(.)))
+
+  final.tbl <- feature.data.tbl %>%
+    mutate(pred = pred.lm) %>%
+    select(date, pred)
+
+  flog.info("Plotting true forecasts for lm")
+  TrueForecasts(forecast.data, LM.model$predictions.tbl.lm, final.tbl)
+}
+
+
+
+
+UnivariateSeries <- function(forecast.data.cleaned, max.lag) {
 
   flog.info("Finding frequency")
-  data.frequency <- forecast.data %>%
+  data.frequency <- forecast.data.cleaned %>%
     tk_index() %>%
     tk_get_timeseries_summary() %>%
     select(scale) %>%
@@ -175,23 +212,32 @@ MainUnivariateSeries <- function() {
     as_vector()
 
   flog.info("Starting univariate modeling")
-  TS.model <- ModelUnivariate(forecast.data, optimal.lag.setting, data.frequency)
+  TS.model <- ModelUnivariate(forecast.data.cleaned, data.frequency)
 
   flog.info("Investigating test error")
-  error.tbl.lm <- Evaluate(forecast.data, TS.model$predictions.tbl.uni)
+  error.tbl.lm <- Evaluate(forecast.data.cleaned, TS.model$predictions.tbl.uni)
   print(error.tbl.lm)
 
   flog.info("Plotting actual vs predicted")
-  ActualVsPredicted(forecast.data, TS.model$predictions.tbl.uni)
+  ActualVsPredicted(forecast.data.cleaned, TS.model$predictions.tbl.uni)
 
-  new.data.tbl <- forecast.idx %>%
-    tk_make_future_timeseries(n_future = 1)
+  new.data.tbl <- forecast.data.cleaned %>%
+    tk_index() %>%
+    tk_make_future_timeseries(n_future = max(n))
+
+  flog.info(glue("Predicting {max(n)} steps ahead with {TS.model$fit.uni %>%
+    mutate(fcast = map(fit, forecast, h = max(n) + 1)) %>%
+                 mutate(sweep = map(fcast, sw_sweep)) %>%
+                 unnest(sweep) %>%
+                 slice(1) %>%
+                 select(model_names) %>%
+                 as_data_frame() %>% as.character}"))
 
   pred.uni <- TS.model$fit.uni %>%
-    mutate(fcast = map(fit, forecast, h = length(new.data.tbl) + 1)) %>%
+    mutate(fcast = map(fit, forecast, h = max(n) + 1)) %>%
     mutate(sweep = map(fcast, sw_sweep, fitted = FALSE, timetk_idx = TRUE, rename_index = "date")) %>%
     unnest(sweep) %>%
-    filter(row_number() == n()) %>%
+    slice((n() - (max(n) - 1)):n()) %>%
     select(value) %>%
     as_vector()
 
@@ -201,8 +247,9 @@ MainUnivariateSeries <- function() {
   ) %>%
     as.tibble()
 
-  flog.info("Plotting true forecasts for lm")
-  TrueForecasts(forecast.data, TS.model$predictions.tbl.uni, final.tbl)
+  flog.info("Plotting true forecasts for univariate model")
+  TrueForecasts(forecast.data.cleaned, TS.model$predictions.tbl.uni, final.tbl)
 }
 
-MainUnivariateSeries()
+Main()
+
