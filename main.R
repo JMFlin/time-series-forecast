@@ -28,7 +28,7 @@ invisible(sapply(file.sources, source, .GlobalEnv))
 h2o.init() # Fire up h2o
 h2o.no_progress() # Turn off output of progress bars
 
-n <- c(3)
+n <- 3
 
 unit.of.measurement <- "unit"
 
@@ -42,8 +42,6 @@ Main <- function() {
     tk_get_timeseries_summary() %>%
     select(scale)
 
-  max.lag <- round(nrow(forecast.data) * 0.4)
-
   flog.info("Plotting time series")
   InitialPlot(forecast.data, data.frequency)
 
@@ -53,22 +51,29 @@ Main <- function() {
     remove_empty(c("cols")) %>%
     select_if(~ !any(is.na(.)))
 
+  max.lag <<- round(nrow(forecast.data.cleaned) * 0.4)
+
+  optimal.lag.setting <<- forecast.data.cleaned %>%
+    TidyAcf(unit, lags = 1:max.lag) %>%
+    filter(acf == max(acf)) %>%
+    pull(lag)
+
   flog.info("Plotting ACF")
-  AcfPlot(forecast.data.cleaned, max.lag)
+  AcfPlot(forecast.data.cleaned)
 
   flog.info("Starting multivariate modeling with h2o")
-  MultivariateSeriesH2O(forecast.data.cleaned, max.lag)
+  MultivariateSeriesH2O(forecast.data.cleaned)
 
   flog.info("Starting multivariate modeling with lm")
-  MultivariateSeriesLM(forecast.data.cleaned, max.lag)
+  MultivariateSeriesLM(forecast.data.cleaned)
 
   flog.info("Starting univariate modeling with arima, ets and tbats")
-  UnivariateSeries(forecast.data.cleaned, max.lag)
+  UnivariateSeries(forecast.data.cleaned)
 }
 
-MultivariateSeriesH2O <- function(forecast.data.cleaned, max.lag) {
+MultivariateSeriesH2O <- function(forecast.data.cleaned) {
   flog.info("Starting to create timetk features")
-  forecast.data.lagged <- CreateTimeTkFeatures(forecast.data.cleaned, max.lag)
+  forecast.data.lagged <- CreateTimeTkFeatures(forecast.data.cleaned)
 
   flog.info("Plotting training strategy for h2o")
   TrainingStrategy(forecast.data.lagged)
@@ -84,7 +89,7 @@ MultivariateSeriesH2O <- function(forecast.data.cleaned, max.lag) {
   ActualVsPredicted(forecast.data.cleaned, H2O.model$predictions.tbl.h2o)
 
   flog.info("Ceating future data for prediction")
-  feature.data.tbl <- CreateFutureData(forecast.data.cleaned, max.lag)
+  feature.data.tbl <- CreateFutureData(forecast.data.cleaned)
 
   h2o.feature.data.tbl <- feature.data.tbl %>%
     select_if(~ !is.Date(.))
@@ -102,9 +107,9 @@ MultivariateSeriesH2O <- function(forecast.data.cleaned, max.lag) {
 }
 
 
-MultivariateSeriesLM <- function(forecast.data.cleaned, max.lag) {
+MultivariateSeriesLM <- function(forecast.data.cleaned) {
   flog.info("Starting to create timetk features")
-  forecast.data.lagged <- CreateTimeTkFeatures(forecast.data.cleaned, max.lag)
+  forecast.data.lagged <- CreateTimeTkFeatures(forecast.data.cleaned)
 
   flog.info("Starting predictions for lm")
   LM.model <- ModelLM(forecast.data.lagged)
@@ -117,7 +122,7 @@ MultivariateSeriesLM <- function(forecast.data.cleaned, max.lag) {
   ActualVsPredicted(forecast.data.cleaned, LM.model$predictions.tbl.lm)
 
   flog.info("Ceating future data for prediction")
-  feature.data.tbl <- CreateFutureData(forecast.data.cleaned, max.lag)
+  feature.data.tbl <- CreateFutureData(forecast.data.cleaned)
 
   flog.info(glue("Predicting {max(n)} steps ahead with lm"))
   pred.lm <- predict(LM.model$fit.lm, newdata = feature.data.tbl %>%
@@ -132,7 +137,7 @@ MultivariateSeriesLM <- function(forecast.data.cleaned, max.lag) {
 }
 
 
-UnivariateSeries <- function(forecast.data.cleaned, max.lag) {
+UnivariateSeries <- function(forecast.data.cleaned) {
   flog.info("Finding frequency")
   data.frequency <- forecast.data.cleaned %>%
     tk_index() %>%

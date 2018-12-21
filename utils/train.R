@@ -175,10 +175,10 @@ ModelUnivariate <- function(forecast.data, data.frequency) {
   tibble.list <- list()
   i <- 1
 
-  optimal.lag.setting <- forecast.data %>%
-    TidyAcf(unit, lags = 1:max.lag) %>%
-    filter(acf == max(acf)) %>%
-    pull(lag)
+  # optimal.lag.setting <- forecast.data %>%
+  #   TidyAcf(unit, lags = 1:max.lag) %>%
+  #   filter(acf == max(acf)) %>%
+  #   pull(lag)
 
   for (i in 1:6) {
     flog.info("Splitting data into train and test sets")

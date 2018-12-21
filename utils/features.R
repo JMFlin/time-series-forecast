@@ -14,7 +14,7 @@ TidyAcf <- function(forecast.data, value, lags = 0:20) {
 }
 
 
-CreateTimeTkFeatures <- function(forecast.data.cleaned, max.lag) {
+CreateTimeTkFeatures <- function(forecast.data.cleaned) {
   flog.info("Augmenting data")
   forecast.data.augmented <- forecast.data.cleaned %>%
     tk_augment_timeseries_signature() %>%
@@ -27,11 +27,11 @@ CreateTimeTkFeatures <- function(forecast.data.cleaned, max.lag) {
     select_if(~ !any(is.na(.))) %>%
     mutate_if(is.ordered, ~ as.character(.) %>% as.factor())
 
-  flog.info("Finding optimal lag")
-  optimal.lag.setting <- forecast.data.cleaned %>%
-    TidyAcf(unit, lags = 1:max.lag) %>%
-    filter(acf == max(acf)) %>%
-    pull(lag)
+  # flog.info("Finding optimal lag")
+  # optimal.lag.setting <- forecast.data.cleaned %>%
+  #   TidyAcf(unit, lags = 1:max.lag) %>%
+  #   filter(acf == max(acf)) %>%
+  #   pull(lag)
 
   flog.info("Inserting optimal lag into feature data")
   forecast.data.lagged <- forecast.data.cleaned %>%
@@ -41,16 +41,16 @@ CreateTimeTkFeatures <- function(forecast.data.cleaned, max.lag) {
   return(forecast.data.lagged)
 }
 
-CreateFutureData <- function(forecast.data.cleaned, max.lag) {
+CreateFutureData <- function(forecast.data.cleaned) {
 
   # Retrieves the timestamp information
   forecast.idx <- forecast.data.cleaned %>%
     tk_index()
 
-  optimal.lag.setting <- forecast.data.cleaned %>%
-    TidyAcf(unit, lags = 1:max.lag) %>%
-    filter(acf == max(acf)) %>%
-    pull(lag)
+  # optimal.lag.setting <- forecast.data.cleaned %>%
+  #   TidyAcf(unit, lags = 1:max.lag) %>%
+  #   filter(acf == max(acf)) %>%
+  #   pull(lag)
 
   flog.info("Creating future time indexes")
   # Make future index
