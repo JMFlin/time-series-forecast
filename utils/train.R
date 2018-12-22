@@ -172,7 +172,7 @@ ModelLM <- function(forecast.data.cleaned) {
 }
 
 
-ModelUnivariate <- function(forecast.data, data.frequency) {
+ModelUnivariate <- function(forecast.data) {
   tibble.list <- list()
 
   for (i in 1:6) {
@@ -185,15 +185,13 @@ ModelUnivariate <- function(forecast.data, data.frequency) {
       filter(date == (max(date) - months(6, abbreviate = FALSE) + months(i, abbreviate = FALSE)))
 
     flog.info("Converting to ts objects")
-    train.ts <- tk_ts(train.tbl$unit,
-      start = as.yearmon(glue(year(min(train.tbl$date)), "-0", month(min(train.tbl$date)))),
-      frequency = data.frequency
-    )
+    train.ts <- msts(train.tbl$unit,
+                     seasonal.periods = seasonal.periods,
+                     start = as.yearmon(glue(year(min(train.tbl$date)), "-0", month(min(train.tbl$date)))))
 
-    test.ts <- tk_ts(test.tbl$unit,
-      start = as.yearmon(glue(year(min(test.tbl$date)), "-0", month(min(test.tbl$date)))),
-      frequency = data.frequency
-    )
+    test.ts <- msts(test.tbl$unit,
+                    seasonal.periods = seasonal.periods,
+                    start = as.yearmon(glue(year(min(test.tbl$date)), "-0", month(min(test.tbl$date)))))
 
     min.train.date <- min(as.Date(train.tbl$date))
     max.train.date <- max(as.Date(train.tbl$date))
@@ -237,7 +235,7 @@ ModelUnivariate <- function(forecast.data, data.frequency) {
       unnest(tidy) %>%
       spread(key = model_names, value = estimate)
 
-    flog.info("Select best model")
+    flog.info("Selecting best model")
     best.model <- models.tbl.fit %>%
       mutate(glance = map(fit, sw_glance)) %>%
       unnest(glance, .drop = TRUE) %>%
@@ -284,6 +282,20 @@ ModelUnivariate <- function(forecast.data, data.frequency) {
   flog.info("Collapsing tibbles")
   predictions.tbl.uni <- bind_rows(tibble.list)
 
+  TsCv <- function(x, h) {forecast(auto.arima(x, max.p = optimal.lag.setting), h = h)}
+  estimate.of.errors <- tsCV(train.ts, TsCv, h = max(n))
+  rmse <- sqrt(colMeans(estimate.of.errors^2, na.rm = T))
+
+  data.frame(h = 1:max(n), RMSE = rmse) %>%
+    ggplot(aes(x = h, y = RMSE)) +
+    geom_line(col = palette_light()[1]) +
+    geom_point(col = palette_light()[1]) +
+    theme_tq() +
+    labs(
+       title = "Estimate of errors",
+       subtitle = "ARIMA model"
+    )
+
   TS.model <- list(
     predictions.tbl.uni = predictions.tbl.uni,
     fit.uni = models.tbl.fit %>%
@@ -294,7 +306,7 @@ ModelUnivariate <- function(forecast.data, data.frequency) {
 }
 
 
-ModelProphet <- function(forecast.data.cleaned, data.frequency) {
+ModelProphet <- function(forecast.data.cleaned) {
   tibble.list <- list()
 
   for (i in 1:6) {

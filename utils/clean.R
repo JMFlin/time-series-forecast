@@ -5,9 +5,9 @@ CleanTarget <- function(forecast.data, data.frequency) {
     arrange(date) %>%
     mutate(unit = na.approx(unit, maxgap = 5, rule = 2))
 
-  full.ts <- seq(min(forecast.data$date), max(forecast.data$date), by = data.frequency %>%
+  full.ts <- seq(min(forecast.data$date), max(forecast.data$date), by = (data.frequency %>%
     as_data_frame() %>%
-    as.character()) %>%
+    as.character())) %>%
     as_data_frame() %>%
     rename("date" = value) %>%
     mutate(impute.unit = 0)

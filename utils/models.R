@@ -59,22 +59,9 @@ MultivariateSeriesLM <- function(forecast.data.cleaned) {
 
 
 UnivariateSeries <- function(forecast.data.cleaned) {
-  flog.info("Finding frequency")
-  data.frequency <- forecast.data.cleaned %>%
-    tk_index() %>%
-    tk_get_timeseries_summary() %>%
-    select(scale) %>%
-    mutate(scale = ifelse(scale == "day", 365,
-      ifelse(scale == "week", 7,
-        ifelse(scale == "month", 12,
-          ifelse(scale == "year", 1, NA)
-        )
-      )
-    )) %>%
-    as_vector()
 
   flog.info("Starting univariate modeling")
-  TS.model <- ModelUnivariate(forecast.data.cleaned, data.frequency)
+  TS.model <- ModelUnivariate(forecast.data.cleaned)
 
   flog.info("Investigating test error")
   error.tbl.lm <- Evaluate(forecast.data.cleaned, TS.model$predictions.tbl.uni)
@@ -113,23 +100,10 @@ UnivariateSeries <- function(forecast.data.cleaned) {
   TrueForecasts(forecast.data.cleaned, TS.model$predictions.tbl.uni, final.tbl)
 }
 
-UnivariateProphet <- function() {
-  flog.info("Finding frequency")
-  data.frequency <- forecast.data.cleaned %>%
-    tk_index() %>%
-    tk_get_timeseries_summary() %>%
-    select(scale) %>%
-    mutate(scale = ifelse(scale == "day", 365,
-      ifelse(scale == "week", 7,
-        ifelse(scale == "month", 12,
-          ifelse(scale == "year", 1, NA)
-        )
-      )
-    )) %>%
-    as_vector()
+UnivariateProphet <- function(forecast.data.cleaned) {
 
   flog.info("Starting thief modeling")
-  PROPHET.model <- ModelProphet(forecast.data.cleaned, data.frequency)
+  PROPHET.model <- ModelProphet(forecast.data.cleaned)
 
   flog.info("Investigating test error")
   error.tbl.lm <- Evaluate(forecast.data.cleaned, PROPHET.model$predictions.tbl.uni)

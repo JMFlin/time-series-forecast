@@ -60,7 +60,5 @@ CreateFutureData <- function(forecast.data.cleaned) {
   feature.data.tbl <- feature.data.tbl %>%
     mutate_if(is.ordered, ~ as.character(.) %>% as.factor())
 
-
-
   return(feature.data.tbl)
 }

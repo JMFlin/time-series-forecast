@@ -2,7 +2,6 @@ setwd("C:/Users/janne/Documents/time-series-forecast")
 
 # TODO: remove high correlation by pca, tsne and autoencoders or https://shiring.github.io/forecasting/2017/06/09/retail_forcasting_part2
 # TODO: library(tsfeatures)
-# TODO: prophet
 # TODO: tsfresh
 
 # Load libraries
@@ -18,6 +17,7 @@ pacman::p_load(
   "sweep", # Broom-style tidiers for the forecast package
   "thief", # Forecasting models and predictions package
   "caret", # Awesome ML Library
+  "prophet", # GAM time series modeling
   "doParallel", # Allow parallel processing with caret
   "recipes" # Carry transformation to new data
 )
@@ -35,18 +35,22 @@ invisible(sapply(file.sources, source, .GlobalEnv))
 h2o.init() # Fire up h2o
 h2o.no_progress() # Turn off output of progress bars
 
+# How many steps to forecast at the end
 n <- 3
 
+# Specify unit of measurement
 unit.of.measurement <- "unit"
 
+# Minimum number of unique instances turned into factors
 factor.limit <- 3
 
+# Control variable for caret
 regression.control <- trainControl(
   method = "cv",
   number = 3
 )
 
-
+# Allow multiprocessing for caret
 cl <- makeCluster(detectCores())
 registerDoParallel(cl)
 
@@ -65,7 +69,17 @@ Main <- function() {
   flog.info("Cleaning target data")
   forecast.data.cleaned <- CleanTarget(forecast.data, data.frequency)
 
-  max.lag <<- round(nrow(forecast.data.cleaned) * 0.4)
+  if (data.frequency == "hour") {
+    seasonal.periods <<- c(24, 168)
+  } else if (data.frequency == "day") {
+    seasonal.periods <<- c(7, 365.25)
+  } else if (data.frequency == "week") {
+    seasonal.periods <<- c(52, 12)
+  } else if (data.frequency == "month") {
+    seasonal.periods <<- c(12, 1)
+  }
+
+  max.lag <<- round(nrow(forecast.data.cleaned) * 0.3)
 
   optimal.lag.setting <<- forecast.data.cleaned %>%
     TidyAcf(unit, lags = 1:max.lag) %>%
@@ -89,6 +103,9 @@ Main <- function() {
 
   flog.info("Starting univariate modeling with arima, ets and tbats")
   UnivariateSeries(forecast.data.cleaned)
+
+  flog.info("Starting univariate modeling with prophet")
+  UnivariateProphet(forecast.data.cleaned)
 }
 
 
