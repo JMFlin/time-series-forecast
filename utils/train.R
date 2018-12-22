@@ -1,17 +1,17 @@
-ModelH2O <- function(forecast.data.lagged) {
+ModelH2O <- function(forecast.data.cleaned) {
   tibble.list <- list()
-
+i <- 1
   for (i in 1:6) {
     flog.info("Splitting data into train, validation and test sets")
-    train.tbl <- forecast.data.lagged %>%
-      filter(forecast.data.lagged$date < (max(forecast.data.lagged$date) - years(1)) + months(i - 1, abbreviate = FALSE))
+    train.tbl <- forecast.data.cleaned %>%
+      filter(forecast.data.cleaned$date < (max(forecast.data.cleaned$date) - years(1)) + months(i - 1, abbreviate = FALSE))
 
-    valid.tbl <- forecast.data.lagged %>%
-      filter(forecast.data.lagged$date >= (max(forecast.data.lagged$date) - years(1)) &
-        forecast.data.lagged$date <= (max(forecast.data.lagged$date) - months(6, abbreviate = FALSE) + months(i - 1, abbreviate = FALSE)))
+    valid.tbl <- forecast.data.cleaned %>%
+      filter(forecast.data.cleaned$date >= (max(forecast.data.cleaned$date) - years(1)) &
+               forecast.data.cleaned$date <= (max(forecast.data.cleaned$date) - months(6, abbreviate = FALSE) + months(i - 1, abbreviate = FALSE)))
 
-    test.tbl <- forecast.data.lagged %>%
-      filter(forecast.data.lagged$date == (max(forecast.data.lagged$date) - months(6, abbreviate = FALSE) + months(i, abbreviate = FALSE)))
+    test.tbl <- forecast.data.cleaned %>%
+      filter(forecast.data.cleaned$date == (max(forecast.data.cleaned$date) - months(6, abbreviate = FALSE) + months(i, abbreviate = FALSE)))
 
     min.train.date <- min(as.Date(train.tbl$date))
     max.train.date <- max(as.Date(train.tbl$date))
@@ -47,11 +47,7 @@ ModelH2O <- function(forecast.data.lagged) {
     test.tbl <- test.tbl %>%
       select_if(~ !is.Date(.))
 
-    ##
-    # remove near zero var cols
-    ##
     flog.info("Converting to h2oframe objects")
-    # Convert to H2OFrame objects
     train.h2o <- as.h2o(train.tbl)
     valid.h2o <- as.h2o(valid.tbl)
     test.h2o <- as.h2o(test.tbl)
@@ -101,15 +97,15 @@ ModelH2O <- function(forecast.data.lagged) {
   return(H2O.model)
 }
 
-ModelLM <- function(forecast.data.lagged) {
+ModelLM <- function(forecast.data.cleaned) {
   tibble.list <- list()
 
   for (i in 1:6) {
     flog.info("Splitting data into train and test sets")
-    train.tbl <- forecast.data.lagged %>%
+    train.tbl <- forecast.data.cleaned %>%
       filter(date <= (max(date) - months(6, abbreviate = FALSE) + months(i - 1, abbreviate = FALSE)))
 
-    test.tbl <- forecast.data.lagged %>%
+    test.tbl <- forecast.data.cleaned %>%
       filter(date == (max(date) - months(6, abbreviate = FALSE) + months(i, abbreviate = FALSE)))
 
     min.train.date <- min(as.Date(train.tbl$date))
@@ -136,11 +132,15 @@ ModelLM <- function(forecast.data.lagged) {
     test.tbl <- test.tbl %>%
       select_if(~ !is.Date(.))
 
-    ##
-    # remove near zero var cols
-    ##
     flog.info("Starting lm training")
-    fit.lm <- lm(unit ~ ., data = train.tbl)
+    fit.lm <- train(unit ~ .,
+                    data = train.tbl,
+                     method  = "lm",
+                     trControl = regression.control,
+                     tuneGrid  = expand.grid(intercept = FALSE))
+
+
+    #fit.lm <- lm(unit ~ ., data = train.tbl)
 
     # Make predictions
     pred <- predict(fit.lm, newdata = test.tbl)
@@ -173,12 +173,6 @@ ModelLM <- function(forecast.data.lagged) {
 
 ModelUnivariate <- function(forecast.data, data.frequency) {
   tibble.list <- list()
-  i <- 1
-
-  # optimal.lag.setting <- forecast.data %>%
-  #   TidyAcf(unit, lags = 1:max.lag) %>%
-  #   filter(acf == max(acf)) %>%
-  #   pull(lag)
 
   for (i in 1:6) {
     flog.info("Splitting data into train and test sets")
