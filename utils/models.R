@@ -59,7 +59,6 @@ MultivariateSeriesLM <- function(forecast.data.cleaned) {
 
 
 UnivariateSeries <- function(forecast.data.cleaned) {
-
   flog.info("Starting univariate modeling")
   TS.model <- ModelUnivariate(forecast.data.cleaned)
 
@@ -101,7 +100,6 @@ UnivariateSeries <- function(forecast.data.cleaned) {
 }
 
 UnivariateProphet <- function(forecast.data.cleaned) {
-
   flog.info("Starting thief modeling")
   PROPHET.model <- ModelProphet(forecast.data.cleaned)
 

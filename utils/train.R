@@ -186,12 +186,14 @@ ModelUnivariate <- function(forecast.data) {
 
     flog.info("Converting to ts objects")
     train.ts <- msts(train.tbl$unit,
-                     seasonal.periods = seasonal.periods,
-                     start = as.yearmon(glue(year(min(train.tbl$date)), "-0", month(min(train.tbl$date)))))
+      seasonal.periods = seasonal.periods,
+      start = as.yearmon(glue(year(min(train.tbl$date)), "-0", month(min(train.tbl$date))))
+    )
 
     test.ts <- msts(test.tbl$unit,
-                    seasonal.periods = seasonal.periods,
-                    start = as.yearmon(glue(year(min(test.tbl$date)), "-0", month(min(test.tbl$date)))))
+      seasonal.periods = seasonal.periods,
+      start = as.yearmon(glue(year(min(test.tbl$date)), "-0", month(min(test.tbl$date))))
+    )
 
     min.train.date <- min(as.Date(train.tbl$date))
     max.train.date <- max(as.Date(train.tbl$date))
@@ -282,7 +284,9 @@ ModelUnivariate <- function(forecast.data) {
   flog.info("Collapsing tibbles")
   predictions.tbl.uni <- bind_rows(tibble.list)
 
-  TsCv <- function(x, h) {forecast(auto.arima(x, max.p = optimal.lag.setting), h = h)}
+  TsCv <- function(x, h) {
+    forecast(auto.arima(x, max.p = optimal.lag.setting), h = h)
+  }
   estimate.of.errors <- tsCV(train.ts, TsCv, h = max(n))
   rmse <- sqrt(colMeans(estimate.of.errors^2, na.rm = T))
 
@@ -292,8 +296,8 @@ ModelUnivariate <- function(forecast.data) {
     geom_point(col = palette_light()[1]) +
     theme_tq() +
     labs(
-       title = "Estimate of errors",
-       subtitle = "ARIMA model"
+      title = "Estimate of errors",
+      subtitle = "ARIMA model"
     )
 
   TS.model <- list(
