@@ -108,8 +108,6 @@ Main <- function() {
   UnivariateProphet(forecast.data.cleaned)
 }
 
-
-
 Main()
 
 stopCluster(cl)
