@@ -295,7 +295,6 @@ ModelUnivariate <- function(forecast.data, data.frequency) {
 
 
 ModelProphet <- function(forecast.data.cleaned, data.frequency) {
-
   tibble.list <- list()
 
   for (i in 1:6) {
@@ -314,12 +313,16 @@ ModelProphet <- function(forecast.data.cleaned, data.frequency) {
     max.test.date <- max(as.Date(test.tbl$date))
 
     train.tbl <- train.tbl %>%
-      rename(ds = date,
-             y = unit)
+      rename(
+        ds = date,
+        y = unit
+      )
 
     test.tbl <- test.tbl %>%
-      rename(ds = date,
-             y = unit)
+      rename(
+        ds = date,
+        y = unit
+      )
 
     flog.info(glue(
       "Training window: {min.train.date} - {max.train.date} "
@@ -334,11 +337,11 @@ ModelProphet <- function(forecast.data.cleaned, data.frequency) {
       tk_index()
 
     prophet.model <- prophet(train.tbl,
-                             growth = "linear", # growth curve trend
-                             #n.changepoints = 100, # Prophet automatically detects changes in trends by selecting changepoints from the data
-                             yearly.seasonality = TRUE, # yearly seasonal component using Fourier series
-                             weekly.seasonality = TRUE # weekly seasonal component using dummy variables
-                             #holidays = off_days
+      growth = "linear", # growth curve trend
+      # n.changepoints = 100, # Prophet automatically detects changes in trends by selecting changepoints from the data
+      yearly.seasonality = TRUE, # yearly seasonal component using Fourier series
+      weekly.seasonality = TRUE # weekly seasonal component using dummy variables
+      # holidays = off_days
     )
 
     pred.prophet <- predict(prophet.model, test.tbl)

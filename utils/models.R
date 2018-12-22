@@ -114,18 +114,17 @@ UnivariateSeries <- function(forecast.data.cleaned) {
 }
 
 UnivariateProphet <- function() {
-
   flog.info("Finding frequency")
   data.frequency <- forecast.data.cleaned %>%
     tk_index() %>%
     tk_get_timeseries_summary() %>%
     select(scale) %>%
     mutate(scale = ifelse(scale == "day", 365,
-                          ifelse(scale == "week", 7,
-                                 ifelse(scale == "month", 12,
-                                        ifelse(scale == "year", 1, NA)
-                                 )
-                          )
+      ifelse(scale == "week", 7,
+        ifelse(scale == "month", 12,
+          ifelse(scale == "year", 1, NA)
+        )
+      )
     )) %>%
     as_vector()
 
@@ -154,6 +153,4 @@ UnivariateProphet <- function() {
 
   flog.info("Plotting true forecasts for prophet")
   TrueForecasts(forecast.data.cleaned, PROPHET.model$predictions.tbl.uni, final.tbl)
-
 }
-
