@@ -86,7 +86,7 @@ ActualVsPredicted <- function(forecast.data, predictions.tbl) {
 TrainingStrategy <- function(forecast.data.lagged) {
   xmin.valid <- forecast.data.lagged %>%
     filter(forecast.data.lagged$date > (max(forecast.data.lagged$date) - years(1)) &
-             forecast.data.lagged$date < (max(forecast.data.lagged$date) - months(6, abbreviate = FALSE))) %>%
+      forecast.data.lagged$date < (max(forecast.data.lagged$date) - months(6, abbreviate = FALSE))) %>%
     summarize(earliest_date = as.numeric(min(date)), latest_date = as.numeric(max(date))) %>%
     select(earliest_date, latest_date)
 

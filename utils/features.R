@@ -54,7 +54,8 @@ CreateFutureData <- function(forecast.data.cleaned) {
     select(date, value.lag), by = c("date")) %>%
     clean_names() %>%
     select_(.dots = names(forecast.data.cleaned
-                          %>% select(-unit)))
+    %>%
+      select(-unit)))
 
   feature.data.tbl <- feature.data.tbl %>%
     mutate_if(is.ordered, ~ as.character(.) %>% as.factor())

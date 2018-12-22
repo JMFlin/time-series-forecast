@@ -1,6 +1,6 @@
 ModelH2O <- function(forecast.data.cleaned) {
   tibble.list <- list()
-i <- 1
+
   for (i in 1:6) {
     flog.info("Splitting data into train, validation and test sets")
     train.tbl <- forecast.data.cleaned %>%
@@ -8,7 +8,7 @@ i <- 1
 
     valid.tbl <- forecast.data.cleaned %>%
       filter(forecast.data.cleaned$date >= (max(forecast.data.cleaned$date) - years(1)) &
-               forecast.data.cleaned$date <= (max(forecast.data.cleaned$date) - months(6, abbreviate = FALSE) + months(i - 1, abbreviate = FALSE)))
+        forecast.data.cleaned$date <= (max(forecast.data.cleaned$date) - months(6, abbreviate = FALSE) + months(i - 1, abbreviate = FALSE)))
 
     test.tbl <- forecast.data.cleaned %>%
       filter(forecast.data.cleaned$date == (max(forecast.data.cleaned$date) - months(6, abbreviate = FALSE) + months(i, abbreviate = FALSE)))
@@ -134,13 +134,14 @@ ModelLM <- function(forecast.data.cleaned) {
 
     flog.info("Starting lm training")
     fit.lm <- train(unit ~ .,
-                    data = train.tbl,
-                     method  = "lm",
-                     trControl = regression.control,
-                     tuneGrid  = expand.grid(intercept = FALSE))
+      data = train.tbl,
+      method = "lm",
+      trControl = regression.control,
+      tuneGrid = expand.grid(intercept = FALSE)
+    )
 
 
-    #fit.lm <- lm(unit ~ ., data = train.tbl)
+    # fit.lm <- lm(unit ~ ., data = train.tbl)
 
     # Make predictions
     pred <- predict(fit.lm, newdata = test.tbl)
@@ -290,4 +291,79 @@ ModelUnivariate <- function(forecast.data, data.frequency) {
   )
 
   return(TS.model)
+}
+
+
+ModelProphet <- function(forecast.data.cleaned, data.frequency) {
+
+  tibble.list <- list()
+
+  for (i in 1:6) {
+    flog.info("Splitting data into train and test sets")
+
+    train.tbl <- forecast.data %>%
+      filter(date <= (max(date) - months(6, abbreviate = FALSE) + months(i - 1, abbreviate = FALSE)))
+
+    test.tbl <- forecast.data %>%
+      filter(date == (max(date) - months(6, abbreviate = FALSE) + months(i, abbreviate = FALSE)))
+
+    min.train.date <- min(as.Date(train.tbl$date))
+    max.train.date <- max(as.Date(train.tbl$date))
+
+    min.test.date <- min(as.Date(test.tbl$date))
+    max.test.date <- max(as.Date(test.tbl$date))
+
+    train.tbl <- train.tbl %>%
+      rename(ds = date,
+             y = unit)
+
+    test.tbl <- test.tbl %>%
+      rename(ds = date,
+             y = unit)
+
+    flog.info(glue(
+      "Training window: {min.train.date} - {max.train.date} "
+    ))
+
+    flog.info(glue(
+      "Testing window: {min.test.date} - {max.test.date} "
+    ))
+
+    # Retrieves the timestamp information
+    forecast.idx <- test.tbl %>%
+      tk_index()
+
+    prophet.model <- prophet(train.tbl,
+                             growth = "linear", # growth curve trend
+                             #n.changepoints = 100, # Prophet automatically detects changes in trends by selecting changepoints from the data
+                             yearly.seasonality = TRUE, # yearly seasonal component using Fourier series
+                             weekly.seasonality = TRUE # weekly seasonal component using dummy variables
+                             #holidays = off_days
+    )
+
+    pred.prophet <- predict(prophet.model, test.tbl)
+
+    # Predictions with timestamps
+    predictions.tbl <- tibble(
+      date = forecast.idx,
+      pred = pred.prophet %>% select(yhat) %>% as_vector()
+    )
+
+    flog.info("Appending predictions")
+    # Append predictions
+    tibble.list[[i]] <- predictions.tbl
+
+    flog.info(glue("End of round {i}"))
+    flog.info("=================================================")
+  }
+
+  flog.info("Collapsing tibbles")
+  predictions.tbl.uni <- bind_rows(tibble.list)
+
+  PROPHET.model <- list(
+    predictions.tbl.uni = predictions.tbl.uni,
+    fit.prophet = prophet.model
+  )
+
+  return(PROPHET.model)
 }

@@ -18,4 +18,3 @@ Evaluate <- function(forecast.data, predictions.tbl) {
 
   return(error.tbl)
 }
-

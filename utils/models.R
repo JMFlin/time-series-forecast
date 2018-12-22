@@ -1,5 +1,4 @@
 MultivariateSeriesH2O <- function(forecast.data.cleaned) {
-
   flog.info("Plotting training strategy for h2o")
   TrainingStrategy(forecast.data.cleaned)
 
@@ -19,7 +18,7 @@ MultivariateSeriesH2O <- function(forecast.data.cleaned) {
   h2o.feature.data.tbl <- feature.data.tbl %>%
     select_if(~ !is.Date(.))
 
-  flog.info(glue("Predicting {max(n)} steps ahead with h2o"))
+  flog.info(glue("Predicting {1:max(n)} steps with h2o: {feature.data.tbl$date}"))
   pred.h2o <- predict(H2O.model$automl.leader, newdata = as.h2o(h2o.feature.data.tbl)) %>%
     as.vector()
 
@@ -33,7 +32,6 @@ MultivariateSeriesH2O <- function(forecast.data.cleaned) {
 
 
 MultivariateSeriesLM <- function(forecast.data.cleaned) {
-
   flog.info("Starting predictions for lm")
   LM.model <- ModelLM(forecast.data.cleaned)
 
@@ -47,9 +45,9 @@ MultivariateSeriesLM <- function(forecast.data.cleaned) {
   flog.info("Ceating future data for prediction")
   feature.data.tbl <- CreateFutureData(forecast.data.cleaned)
 
-  flog.info(glue("Predicting {max(n)} steps ahead with lm"))
+  flog.info(glue("Predicting {1:max(n)} steps with lm: {feature.data.tbl$date}"))
   pred.lm <- predict(LM.model$fit.lm, newdata = feature.data.tbl %>%
-                       select_if(~ !is.Date(.)))
+    select_if(~ !is.Date(.)))
 
   final.tbl <- feature.data.tbl %>%
     mutate(pred = pred.lm) %>%
@@ -67,11 +65,11 @@ UnivariateSeries <- function(forecast.data.cleaned) {
     tk_get_timeseries_summary() %>%
     select(scale) %>%
     mutate(scale = ifelse(scale == "day", 365,
-                          ifelse(scale == "week", 7,
-                                 ifelse(scale == "month", 12,
-                                        ifelse(scale == "year", 1, NA)
-                                 )
-                          )
+      ifelse(scale == "week", 7,
+        ifelse(scale == "month", 12,
+          ifelse(scale == "year", 1, NA)
+        )
+      )
     )) %>%
     as_vector()
 
@@ -89,7 +87,7 @@ UnivariateSeries <- function(forecast.data.cleaned) {
     tk_index() %>%
     tk_make_future_timeseries(n_future = max(n))
 
-  flog.info(glue("Predicting {max(n)} steps ahead with {TS.model$fit.uni %>%
+  flog.info(glue("Predicting {max(n)} steps with {TS.model$fit.uni %>%
     mutate(fcast = map(fit, forecast, h = max(n) + 1)) %>%
                  mutate(sweep = map(fcast, sw_sweep)) %>%
                  unnest(sweep) %>%
@@ -114,3 +112,48 @@ UnivariateSeries <- function(forecast.data.cleaned) {
   flog.info("Plotting true forecasts for univariate model")
   TrueForecasts(forecast.data.cleaned, TS.model$predictions.tbl.uni, final.tbl)
 }
+
+UnivariateProphet <- function() {
+
+  flog.info("Finding frequency")
+  data.frequency <- forecast.data.cleaned %>%
+    tk_index() %>%
+    tk_get_timeseries_summary() %>%
+    select(scale) %>%
+    mutate(scale = ifelse(scale == "day", 365,
+                          ifelse(scale == "week", 7,
+                                 ifelse(scale == "month", 12,
+                                        ifelse(scale == "year", 1, NA)
+                                 )
+                          )
+    )) %>%
+    as_vector()
+
+  flog.info("Starting thief modeling")
+  PROPHET.model <- ModelProphet(forecast.data.cleaned, data.frequency)
+
+  flog.info("Investigating test error")
+  error.tbl.lm <- Evaluate(forecast.data.cleaned, PROPHET.model$predictions.tbl.uni)
+  print(error.tbl.lm)
+
+  flog.info("Plotting actual vs predicted")
+  ActualVsPredicted(forecast.data.cleaned, PROPHET.model$predictions.tbl.uni)
+
+  new.data.tbl <- forecast.data.cleaned %>%
+    tk_index() %>%
+    tk_make_future_timeseries(n_future = max(n)) %>%
+    as_data_frame() %>%
+    rename("ds" = value)
+
+  flog.info(glue("Predicting {1:max(n)} steps with prophet: {new.data.tbl$ds}"))
+  pred.prophet <- predict(PROPHET.model$fit.prophet, new.data.tbl)
+
+  final.tbl <- pred.prophet %>%
+    rename(pred = yhat, date = ds) %>%
+    select(date, pred)
+
+  flog.info("Plotting true forecasts for prophet")
+  TrueForecasts(forecast.data.cleaned, PROPHET.model$predictions.tbl.uni, final.tbl)
+
+}
+

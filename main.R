@@ -1,7 +1,9 @@
 setwd("C:/Users/janne/Documents/time-series-forecast")
 
-#TODO: remove high correlation by pca, tsne and autoencoders or https://shiring.github.io/forecasting/2017/06/09/retail_forcasting_part2
-#TODO: library(tsfeatures)
+# TODO: remove high correlation by pca, tsne and autoencoders or https://shiring.github.io/forecasting/2017/06/09/retail_forcasting_part2
+# TODO: library(tsfeatures)
+# TODO: prophet
+# TODO: tsfresh
 
 # Load libraries
 if (!require("pacman")) install.packages("pacman")
@@ -14,7 +16,7 @@ pacman::p_load(
   "glue", # A better paste function
   "styler", # Style r code
   "sweep", # Broom-style tidiers for the forecast package
-  "forecast", # Forecasting models and predictions package
+  "thief", # Forecasting models and predictions package
   "caret", # Awesome ML Library
   "doParallel", # Allow parallel processing with caret
   "recipes" # Carry transformation to new data
@@ -39,8 +41,9 @@ unit.of.measurement <- "unit"
 
 factor.limit <- 3
 
-regression.control  <- trainControl(method = "cv",
-                                     number = 3
+regression.control <- trainControl(
+  method = "cv",
+  number = 3
 )
 
 
@@ -92,4 +95,6 @@ Main <- function() {
 
 Main()
 
-stopCluster(cl); rm(list = ls()); .rs.restartR()
+stopCluster(cl)
+rm(list = ls())
+.rs.restartR()
