@@ -43,7 +43,8 @@ MultivariateSeriesLM <- function(forecast.data.cleaned) {
   ActualVsPredicted(forecast.data.cleaned, LM.model$predictions.tbl.lm)
 
   flog.info("Ceating future data for prediction")
-  feature.data.tbl <- CreateFutureData(forecast.data.cleaned)
+  feature.data.tbl <- CreateFutureData(forecast.data.cleaned) %>%
+    predict(preProc, .)
 
   flog.info(glue("Predicting {1:max(n)} steps with lm: {feature.data.tbl$date}"))
   pred.lm <- predict(LM.model$fit.lm, newdata = feature.data.tbl %>%

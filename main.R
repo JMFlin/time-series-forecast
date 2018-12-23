@@ -1,8 +1,7 @@
-setwd("C:/Users/janne/Documents/time-series-forecast")
-
 # TODO: remove high correlation by pca, tsne and autoencoders or https://shiring.github.io/forecasting/2017/06/09/retail_forcasting_part2
-# TODO: library(tsfeatures)
+# TODO: tsfeatures
 # TODO: tsfresh
+# TODO: preprocessing for all multivariate methods
 
 # Load libraries
 if (!require("pacman")) install.packages("pacman")
@@ -21,6 +20,8 @@ pacman::p_load(
   "doParallel", # Allow parallel processing with caret
   "recipes" # Carry transformation to new data
 )
+#setwd("C:/Users/janne/Documents/time-series-forecast")
+setwd(glue(getwd(),"/time-series-forecast"))
 
 usethis::use_tidy_style()
 # reprex::reprex(style = TRUE)
@@ -43,6 +44,9 @@ unit.of.measurement <- "unit"
 
 # Minimum number of unique instances turned into factors
 factor.limit <- 3
+
+# Preproceesing for multivariate models
+preprocess <- c("center", "scale", "YeoJohnson")
 
 # Control variable for caret
 regression.control <- trainControl(
