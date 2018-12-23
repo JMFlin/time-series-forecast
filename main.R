@@ -20,8 +20,8 @@ pacman::p_load(
   "doParallel", # Allow parallel processing with caret
   "recipes" # Carry transformation to new data
 )
-#setwd("C:/Users/janne/Documents/time-series-forecast")
-setwd(glue(getwd(),"/time-series-forecast"))
+# setwd("C:/Users/janne/Documents/time-series-forecast")
+setwd(glue(getwd(), "/time-series-forecast"))
 
 usethis::use_tidy_style()
 # reprex::reprex(style = TRUE)

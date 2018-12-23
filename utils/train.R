@@ -131,14 +131,15 @@ ModelLM <- function(forecast.data.cleaned) {
 
     test.tbl <- test.tbl %>%
       select_if(~ !is.Date(.))
-    
-    preProc <<- preProcess(train.tbl %>% select(-unit), 
-                           method = preprocess)
-    
+
+    preProc <<- preProcess(train.tbl %>% select(-unit),
+      method = preprocess
+    )
+
     train.tbl <- predict(
       preProc, train.tbl
     )
-    
+
     test.tbl <- predict(preProc, test.tbl)
 
     flog.info("Starting lm training")
