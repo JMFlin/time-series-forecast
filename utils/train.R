@@ -46,18 +46,31 @@ ModelH2O <- function(forecast.data.cleaned) {
 
     test.tbl <- test.tbl %>%
       select_if(~ !is.Date(.))
+    
+    flog.info("Preprocessing")
+    preProc <<- preProcess(train.tbl %>% dplyr::select(-unit),
+                           method = preprocess
+    )
+    
+    train.tbl <- predict(
+      preProc, train.tbl
+    )
+    
+    test.tbl <- predict(preProc, test.tbl)
+    
+    valid.tbl <- predict(preProc, valid.tbl)
 
     flog.info("Converting to h2oframe objects")
     train.h2o <- as.h2o(train.tbl)
     valid.h2o <- as.h2o(valid.tbl)
     test.h2o <- as.h2o(test.tbl)
 
-    x <- setdiff(names(train.h2o), "unit")
+    x <- setdiff(names(train.h2o), unit.of.measurement)
 
     flog.info("Starting h2o.automl training")
     automl.models.h2o <- h2o.automl(
       x = x,
-      y = "unit",
+      y = unit.of.measurement,
       training_frame = train.h2o,
       validation_frame = valid.h2o,
       leaderboard_frame = test.h2o,
@@ -131,8 +144,9 @@ ModelLM <- function(forecast.data.cleaned) {
 
     test.tbl <- test.tbl %>%
       select_if(~ !is.Date(.))
-
-    preProc <<- preProcess(train.tbl %>% select(-unit),
+    
+    flog.info("Preprocessing")
+    preProc <<- preProcess(train.tbl %>% dplyr::select(-unit),
       method = preprocess
     )
 
@@ -227,7 +241,7 @@ ModelUnivariate <- function(forecast.data) {
     models.list <- list(
       auto.arima = list(
         y = train.ts,
-        max.p = optimal.lag.setting
+        max.p = max(optimal.lag.setting)
       ),
       ets = list(
         y = train.ts
@@ -267,7 +281,7 @@ ModelUnivariate <- function(forecast.data) {
 
     flog.info("Predicting with best model")
     models.tbl.fcast <- models.tbl.fit %>%
-      filter(model_names == (best.model %>% select(model_names) %>% as_vector())) %>%
+      filter(model_names == (best.model %>% dplyr::select(model_names) %>% as_vector())) %>%
       mutate(fcast = map(fit, forecast, h = 1))
 
     models.tbl.fcast.tidy <- models.tbl.fcast %>%
@@ -279,7 +293,7 @@ ModelUnivariate <- function(forecast.data) {
       pred = models.tbl.fcast.tidy %>%
         unnest(sweep) %>%
         filter(row_number() == n()) %>%
-        select(value) %>%
+        dplyr::select(value) %>%
         as_vector()
     )
 
@@ -295,7 +309,7 @@ ModelUnivariate <- function(forecast.data) {
   predictions.tbl.uni <- bind_rows(tibble.list)
 
   TsCv <- function(x, h) {
-    forecast(auto.arima(x, max.p = optimal.lag.setting), h = h)
+    forecast(auto.arima(x, max.p = max(optimal.lag.setting)), h = h)
   }
   estimate.of.errors <- tsCV(train.ts, TsCv, h = max(n))
   rmse <- sqrt(colMeans(estimate.of.errors^2, na.rm = T))
@@ -313,7 +327,7 @@ ModelUnivariate <- function(forecast.data) {
   TS.model <- list(
     predictions.tbl.uni = predictions.tbl.uni,
     fit.uni = models.tbl.fit %>%
-      filter(model_names == (best.model %>% select(model_names) %>% as_vector()))
+      filter(model_names == (best.model %>% dplyr::select(model_names) %>% as_vector()))
   )
 
   return(TS.model)
@@ -326,10 +340,10 @@ ModelProphet <- function(forecast.data.cleaned) {
   for (i in 1:6) {
     flog.info("Splitting data into train and test sets")
 
-    train.tbl <- forecast.data %>%
+    train.tbl <- forecast.data.cleaned %>%
       filter(date <= (max(date) - months(6, abbreviate = FALSE) + months(i - 1, abbreviate = FALSE)))
 
-    test.tbl <- forecast.data %>%
+    test.tbl <- forecast.data.cleaned %>%
       filter(date == (max(date) - months(6, abbreviate = FALSE) + months(i, abbreviate = FALSE)))
 
     min.train.date <- min(as.Date(train.tbl$date))
@@ -375,7 +389,7 @@ ModelProphet <- function(forecast.data.cleaned) {
     # Predictions with timestamps
     predictions.tbl <- tibble(
       date = forecast.idx,
-      pred = pred.prophet %>% select(yhat) %>% as_vector()
+      pred = pred.prophet %>% dplyr::select(yhat) %>% as_vector()
     )
 
     flog.info("Appending predictions")

@@ -60,12 +60,12 @@ TrueForecasts <- function(forecast.data, predictions.tbl, final.tbl) {
     )
 }
 
-ActualVsPredicted <- function(forecast.data, predictions.tbl) {
-  actuals.tbl <- forecast.data %>%
-    filter(predictions.tbl$date == forecast.data$date)
+ActualVsPredicted <- function(forecast.data.cleaned, predictions.tbl) {
+  actuals.tbl <- forecast.data.cleaned %>%
+    filter(date %in% predictions.tbl$date)
 
   # Plot Beer Sales Forecast
-  forecast.data %>%
+  forecast.data.cleaned %>%
     ggplot(aes(x = date, y = unit)) +
     # Training data
     geom_line(color = palette_light()[[1]]) +
@@ -88,12 +88,12 @@ TrainingStrategy <- function(forecast.data.lagged) {
     filter(forecast.data.lagged$date > (max(forecast.data.lagged$date) - years(1)) &
       forecast.data.lagged$date < (max(forecast.data.lagged$date) - months(6, abbreviate = FALSE))) %>%
     summarize(earliest_date = as.numeric(min(date)), latest_date = as.numeric(max(date))) %>%
-    select(earliest_date, latest_date)
+    dplyr::select(earliest_date, latest_date)
 
   xmin.train <- forecast.data.lagged %>%
     filter(forecast.data.lagged$date == (max(forecast.data.lagged$date) - months(6, abbreviate = FALSE) + months(1, abbreviate = FALSE))) %>%
     summarize(earliest_date = as.numeric(min(date))) %>%
-    select(earliest_date)
+    dplyr::select(earliest_date)
 
   forecast.data.lagged %>%
     ggplot(aes(date, unit)) +

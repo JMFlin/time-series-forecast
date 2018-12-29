@@ -14,7 +14,7 @@ CleanTarget <- function(forecast.data, data.frequency) {
 
   forecast.data.full <- inner_join(forecast.data, full.ts, by = "date") %>%
     mutate(unit = unit + impute.unit) %>%
-    select(date, unit)
+    dplyr::select(date, unit)
 
   return(forecast.data.full)
 }
@@ -71,7 +71,8 @@ CleanFeatures <- function(forecast.data.features) {
 
   forecast.data.cleaned <- bake(rec.obj, forecast.data.removed) %>%
     clean_names() %>%
-    mutate_if(is.ordered, ~ as.character(.) %>% as.factor())
+    mutate_if(is.ordered, ~ as.character(.) %>% as.factor()) %>%
+    drop_na()
 
   return(forecast.data.cleaned)
 }

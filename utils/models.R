@@ -13,7 +13,8 @@ MultivariateSeriesH2O <- function(forecast.data.cleaned) {
   ActualVsPredicted(forecast.data.cleaned, H2O.model$predictions.tbl.h2o)
 
   flog.info("Ceating future data for prediction")
-  feature.data.tbl <- CreateFutureData(forecast.data.cleaned)
+  feature.data.tbl <- CreateFutureData(forecast.data.cleaned) %>%
+    predict(preProc, .)
 
   h2o.feature.data.tbl <- feature.data.tbl %>%
     select_if(~ !is.Date(.))
@@ -24,7 +25,7 @@ MultivariateSeriesH2O <- function(forecast.data.cleaned) {
 
   final.tbl <- feature.data.tbl %>%
     mutate(pred = pred.h2o) %>%
-    select(date, pred)
+    dplyr::select(date, pred)
 
   flog.info("Plotting true forecasts for h2o")
   TrueForecasts(forecast.data.cleaned, H2O.model$predictions.tbl.h2o, final.tbl)
@@ -52,7 +53,7 @@ MultivariateSeriesLM <- function(forecast.data.cleaned) {
 
   final.tbl <- feature.data.tbl %>%
     mutate(pred = pred.lm) %>%
-    select(date, pred)
+    dplyr::select(date, pred)
 
   flog.info("Plotting true forecasts for lm")
   TrueForecasts(forecast.data.cleaned, LM.model$predictions.tbl.lm, final.tbl)
@@ -87,7 +88,7 @@ UnivariateSeries <- function(forecast.data.cleaned) {
     mutate(sweep = map(fcast, sw_sweep, fitted = FALSE, timetk_idx = TRUE, rename_index = "date")) %>%
     unnest(sweep) %>%
     slice((n() - (max(n) - 1)):n()) %>%
-    select(value) %>%
+    dplyr::select(value) %>%
     as_vector()
 
   final.tbl <- data.frame(
@@ -101,7 +102,7 @@ UnivariateSeries <- function(forecast.data.cleaned) {
 }
 
 UnivariateProphet <- function(forecast.data.cleaned) {
-  flog.info("Starting thief modeling")
+  flog.info("Starting prophet modeling")
   PROPHET.model <- ModelProphet(forecast.data.cleaned)
 
   flog.info("Investigating test error")
@@ -122,7 +123,7 @@ UnivariateProphet <- function(forecast.data.cleaned) {
 
   final.tbl <- pred.prophet %>%
     rename(pred = yhat, date = ds) %>%
-    select(date, pred)
+    dplyr::select(date, pred)
 
   flog.info("Plotting true forecasts for prophet")
   TrueForecasts(forecast.data.cleaned, PROPHET.model$predictions.tbl.uni, final.tbl)
